@@ -39,6 +39,9 @@ async function main() {
     case 'init':
       await initCommand();
       break;
+    case 'dashboard':
+      await dashboardCommand(args.slice(1));
+      break;
     default:
       console.error(`Unknown command: ${command}`);
       console.log(USAGE);
@@ -255,6 +258,50 @@ Focus on:
   console.log('  Created: specs/01-write-tests.md');
   console.log('\nEdit toryo.config.json to configure your agents, then run:');
   console.log('  toryo run');
+}
+
+async function dashboardCommand(args: string[]) {
+  const config = await loadConfig(args);
+  const { resolve: pathResolve } = await import('node:path');
+
+  const outputDir = pathResolve(config.outputDir);
+
+  // Try to find and run the dashboard server
+  const dashboardPaths = [
+    pathResolve('node_modules/@toryo/dashboard/dist/server.js'),
+    pathResolve('packages/dashboard/dist/server.js'),
+  ];
+
+  let serverPath: string | null = null;
+  const { access } = await import('node:fs/promises');
+  for (const p of dashboardPaths) {
+    try {
+      await access(p);
+      serverPath = p;
+      break;
+    } catch { /* try next */ }
+  }
+
+  if (!serverPath) {
+    console.error('Dashboard not found. Install @toryo/dashboard or build from packages/dashboard.');
+    process.exit(1);
+  }
+
+  console.log(`\n棟梁 Toryo Dashboard`);
+  console.log(`  Starting at http://localhost:3100`);
+  console.log(`  Watching: ${outputDir}\n`);
+
+  const { spawn } = await import('node:child_process');
+  const child = spawn('node', [serverPath], {
+    env: { ...process.env, TORYO_OUTPUT_DIR: outputDir },
+    stdio: 'inherit',
+  });
+
+  // Forward signals for clean shutdown
+  process.on('SIGINT', () => child.kill('SIGINT'));
+  process.on('SIGTERM', () => child.kill('SIGTERM'));
+
+  await new Promise<void>((resolve) => child.on('close', () => resolve()));
 }
 
 main().catch((error) => {

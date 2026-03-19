@@ -16,6 +16,7 @@ import { createRatchet } from './ratchet.js';
 import { createMetrics } from './metrics.js';
 import { processOutput, saveToFile } from './extraction.js';
 import { truncateForPhase } from './truncation.js';
+import { createNotifier, shouldNotify, formatNotification } from './notifications.js';
 
 interface OrchestratorOptions {
   config: ToryoConfig;
@@ -65,8 +66,18 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     agentStates[id].autonomyLevel = delegation.getAutonomyLevel(agentStates[id]);
   }
 
+  const notifier = createNotifier(config.notifications);
+
   function emit(event: ToryoEvent) {
     onEvent?.(event);
+
+    // Send notifications for qualifying events
+    if (notifier && config.notifications && shouldNotify(event, config.notifications.events)) {
+      const { title, body, priority } = formatNotification(event, globalMetrics);
+      notifier.send(title, body, priority).catch(() => {
+        // Notification failures should not break the orchestrator
+      });
+    }
   }
 
   async function sendToAgent(
