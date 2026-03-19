@@ -171,18 +171,28 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     emit({ type: 'cycle:start', cycle: cycleNum, task: task.id });
 
     const phases = config.phases ?? ['plan', 'research', 'execute', 'review'];
+    const reviewPhase = phases[phases.length - 1]; // Last phase is always the quality gate
+    const workPhases = phases.slice(0, -1); // All phases except the last (quality gate)
     const phaseResults: PhaseResult[] = [];
     let previousOutput = '';
 
-    // --- Run plan/research/execute phases ---
-    for (const phase of phases) {
-      if (phase === 'review') continue; // handled separately
-
+    // --- Run work phases (all except last/review phase) ---
+    for (const phase of workPhases) {
       const assignment = task.phases.find((p) => p.phase === phase);
-      const agentId =
-        assignment?.agent === 'auto' || !assignment
-          ? delegation.selectAgent(task, config.agents, agentStates)
-          : assignment.agent;
+      let agentId: string;
+      if (assignment?.agent && assignment.agent !== 'auto') {
+        agentId = assignment.agent;
+      } else {
+        // Phase-aware agent selection: create a synthetic task that emphasizes this phase
+        const phaseHints: Record<string, string> = {
+          plan: 'plan and design the approach',
+          research: 'research and analyze information',
+          execute: 'implement and write code',
+          review: 'review and score output quality',
+        };
+        const phaseTask = { ...task, description: `${phaseHints[phase] ?? phase}: ${task.description}` };
+        agentId = delegation.selectAgent(phaseTask, config.agents, agentStates);
+      }
 
       // Build prompt: task description + previous phase output
       const contextFromPrevious = previousOutput
@@ -200,23 +210,8 @@ export async function createOrchestrator(options: OrchestratorOptions) {
       await ratchet.commit(`toryo cycle-${cycleNum}: ${task.id}`, [config.outputDir]);
     }
 
-    // --- QA Review Phase ---
-    if (!phases.includes('review')) {
-      // No review phase — auto-keep
-      const cycleResult: CycleResult = {
-        cycleNumber: cycleNum,
-        task: task.id,
-        timestamp: new Date().toISOString(),
-        phases: phaseResults,
-        finalScore: 10,
-        verdict: 'keep',
-        retryCount: 0,
-      };
-      emit({ type: 'cycle:complete', cycle: cycleNum, result: cycleResult });
-      return cycleResult;
-    }
-
-    const reviewAssignment = task.phases.find((p) => p.phase === 'review');
+    // --- QA Review Phase (last phase in the phases array) ---
+    const reviewAssignment = task.phases.find((p) => p.phase === reviewPhase);
     const reviewerAgentId =
       reviewAssignment?.agent === 'auto' || !reviewAssignment
         ? delegation.selectAgent(
@@ -226,10 +221,13 @@ export async function createOrchestrator(options: OrchestratorOptions) {
           )
         : reviewAssignment.agent;
 
-    const executeOutput = phaseResults.find((p) => p.phase === 'execute')?.output ?? previousOutput;
+    // Use the last work phase's output, or fall back to previousOutput
+    const executeOutput = phaseResults.length > 0
+      ? phaseResults[phaseResults.length - 1].output
+      : previousOutput;
 
     const reviewPrompt = buildReviewPrompt(task, executeOutput);
-    const reviewResult = await runPhase('review', reviewerAgentId, reviewPrompt, cycleNum);
+    const reviewResult = await runPhase(reviewPhase, reviewerAgentId, reviewPrompt, cycleNum);
 
     const review: ReviewResult = {
       score: parseScore(reviewResult.output),
@@ -259,11 +257,12 @@ export async function createOrchestrator(options: OrchestratorOptions) {
         retryCount++;
         emit({ type: 'ralph:retry', cycle: cycleNum, attempt: retryCount, feedback: review.feedback });
 
-        // Retry the execute phase with QA feedback
-        const executeAgent = phaseResults.find((p) => p.phase === 'execute')?.agentId ??
+        // Retry the last work phase with QA feedback
+        const lastWorkPhase = workPhases[workPhases.length - 1];
+        const executeAgent = phaseResults.find((p) => p.phase === lastWorkPhase)?.agentId ??
           Object.keys(config.agents)[0];
         const retryPrompt = ratchet.buildRetryPrompt(task.description, review.feedback);
-        const retryResult = await runPhase('execute', executeAgent, retryPrompt, cycleNum);
+        const retryResult = await runPhase(lastWorkPhase, executeAgent, retryPrompt, cycleNum);
 
         // Commit retry
         if (await ratchet.isGitRepo()) {
@@ -274,7 +273,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
         }
 
         // Re-review
-        const retryReviewResult = await runPhase('review', reviewerAgentId, buildReviewPrompt(task, retryResult.output), cycleNum);
+        const retryReviewResult = await runPhase(reviewPhase, reviewerAgentId, buildReviewPrompt(task, retryResult.output), cycleNum);
         const retryReview: ReviewResult = {
           score: parseScore(retryReviewResult.output),
           verdict: parseVerdict(retryReviewResult.output),
@@ -297,7 +296,8 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     }
 
     // --- Update metrics ---
-    const executorId = phaseResults.find((p) => p.phase === 'execute')?.agentId ?? Object.keys(config.agents)[0];
+    const lastWorkPhase = workPhases[workPhases.length - 1];
+    const executorId = phaseResults.find((p) => p.phase === lastWorkPhase)?.agentId ?? Object.keys(config.agents)[0];
     agentStates[executorId] = delegation.updateState(agentStates[executorId], finalScore);
 
     globalMetrics = metrics.updateAgentMetrics(

@@ -10,6 +10,8 @@ export { truncate, truncateForPhase } from './truncation.js';
 export { loadSpecs, parseSpec } from './specs.js';
 export { createNotifier, shouldNotify, formatNotification } from './notifications.js';
 export type { NotificationProvider } from './notifications.js';
+export { shouldSelfImprove, buildSelfImprovePrompt } from './self-improve.js';
+export type { SelfImproveResult } from './self-improve.js';
 
 // Types
 export type {
@@ -38,3 +40,5 @@ export type {
   AdapterResponse,
   ToryoEvent,
 } from './types.js';
+export { BUILT_IN_PHASES } from './types.js';
+export type { BuiltInPhase } from './types.js';

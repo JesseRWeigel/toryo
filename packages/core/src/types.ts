@@ -58,7 +58,9 @@ export interface PhaseAssignment {
   prompt?: string;
 }
 
-export type PhaseName = 'plan' | 'research' | 'execute' | 'review';
+export const BUILT_IN_PHASES = ['plan', 'research', 'execute', 'review'] as const;
+export type BuiltInPhase = typeof BUILT_IN_PHASES[number];
+export type PhaseName = string;
 
 // --- Cycle Types ---
 

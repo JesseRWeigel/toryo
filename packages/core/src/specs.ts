@@ -56,7 +56,7 @@ export function parseSpec(content: string, defaultId: string): TaskSpec | null {
 
   const phases: PhaseAssignment[] = frontmatter.phases
     ? Object.entries(frontmatter.phases).map(([phase, agent]) => ({
-        phase: phase as PhaseAssignment['phase'],
+        phase,
         agent,
       }))
     : defaultPhases();

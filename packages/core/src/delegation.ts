@@ -93,17 +93,26 @@ export function createDelegation(config: Partial<DelegationConfig> = {}) {
 
     // Find the dominant dimension
     const dimensions: [string, number][] = [
+      ['plan', profile.complexity],
       ['research', profile.researchNeeded],
       ['code', profile.codeNeeded],
       ['review', profile.reviewNeeded],
     ];
     dimensions.sort((a, b) => b[1] - a[1]);
 
-    // Match dimension to agent strengths
+    // Match dimension to agent strengths (check synonyms too)
+    const synonyms: Record<string, string[]> = {
+      plan: ['plan', 'planning', 'architect', 'design', 'strategy'],
+      research: ['research', 'analysis', 'search', 'investigate', 'find'],
+      code: ['code', 'coding', 'implement', 'build', 'develop', 'test'],
+      review: ['review', 'score', 'quality', 'audit', 'check', 'qa'],
+    };
+
     for (const [dimension] of dimensions) {
+      const terms = synonyms[dimension] ?? [dimension];
       for (const [id, agent] of Object.entries(agents)) {
         const hasStrength = agent.strengths.some((s) =>
-          s.toLowerCase().includes(dimension),
+          terms.some((t) => s.toLowerCase().includes(t)),
         );
         if (hasStrength) {
           const state = states[id];

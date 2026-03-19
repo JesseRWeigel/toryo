@@ -13,6 +13,11 @@ const DEFAULT_CONFIG: RatchetConfig = {
 export function createRatchet(config: Partial<RatchetConfig> = {}, cwd: string) {
   const cfg = { ...DEFAULT_CONFIG, ...config };
 
+  /** Tracks the branch we were on before creating a task branch */
+  let originalBranch: string | null = null;
+  /** Tracks the current task branch name */
+  let currentTaskBranch: string | null = null;
+
   /** Safe git execution — uses execFile (array args, no shell injection) */
   async function git(...args: string[]): Promise<string> {
     const { stdout } = await execFileAsync('git', args, { cwd });
@@ -28,10 +33,63 @@ export function createRatchet(config: Partial<RatchetConfig> = {}, cwd: string) 
     }
   }
 
+  /** Get the current branch name */
+  async function getCurrentBranch(): Promise<string> {
+    return git('rev-parse', '--abbrev-ref', 'HEAD');
+  }
+
+  /** Create and check out a new branch */
+  async function createBranch(name: string): Promise<boolean> {
+    try {
+      originalBranch = await getCurrentBranch();
+      await git('checkout', '-b', name);
+      currentTaskBranch = name;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Merge a task branch back to the original branch and delete it */
+  async function mergeBranch(name: string): Promise<boolean> {
+    try {
+      const target = originalBranch ?? 'main';
+      await git('checkout', target);
+      await git('merge', name);
+      await git('branch', '-d', name);
+      if (currentTaskBranch === name) currentTaskBranch = null;
+      originalBranch = null;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Check out the original branch and delete the task branch */
+  async function deleteBranch(name: string): Promise<boolean> {
+    try {
+      const target = originalBranch ?? 'main';
+      await git('checkout', target);
+      await git('branch', '-D', name);
+      if (currentTaskBranch === name) currentTaskBranch = null;
+      originalBranch = null;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function commit(message: string, paths: string[] = ['.']): Promise<string | null> {
     if (cfg.gitStrategy === 'none') return null;
 
     try {
+      // For branch-per-task, create a branch if we haven't yet
+      if (cfg.gitStrategy === 'branch-per-task' && !currentTaskBranch) {
+        const branchName = `toryo/${message.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+        const created = await createBranch(branchName);
+        if (!created) return null;
+      }
+
       for (const p of paths) {
         await git('add', p);
       }
@@ -50,6 +108,9 @@ export function createRatchet(config: Partial<RatchetConfig> = {}, cwd: string) 
     if (cfg.gitStrategy === 'none') return false;
 
     try {
+      if (cfg.gitStrategy === 'branch-per-task' && currentTaskBranch) {
+        return deleteBranch(currentTaskBranch);
+      }
       await git('reset', 'HEAD~1', '--hard');
       return true;
     } catch {
@@ -87,6 +148,10 @@ export function createRatchet(config: Partial<RatchetConfig> = {}, cwd: string) 
 
   return {
     isGitRepo,
+    getCurrentBranch,
+    createBranch,
+    mergeBranch,
+    deleteBranch,
     commit,
     revert,
     shouldKeep,
@@ -94,5 +159,9 @@ export function createRatchet(config: Partial<RatchetConfig> = {}, cwd: string) 
     canRetry,
     buildRetryPrompt,
     config: cfg,
+    /** The branch we were on before creating a task branch */
+    get originalBranch() { return originalBranch; },
+    /** The current task branch name, if any */
+    get currentTaskBranch() { return currentTaskBranch; },
   };
 }
