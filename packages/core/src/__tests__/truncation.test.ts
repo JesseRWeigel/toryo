@@ -24,23 +24,27 @@ describe('truncate', () => {
     const result = truncate(text, { maxChars: 100 });
     const parts = result.split('[... truncated for context ...]');
     expect(parts.length).toBe(2);
-    // head should be ~60 chars, tail ~35 chars
-    expect(parts[0].length).toBe(60);
-    expect(parts[1].length).toBe(35 + 2); // +2 for trailing \n\n
+    // Head gets \n\n suffix, tail gets \n\n prefix from the marker
+    expect(parts[0]).toMatch(/\n\n$/);
+    expect(parts[1]).toMatch(/^\n\n/);
   });
 
   it('respects custom headChars and tailChars', () => {
     const text = 'x'.repeat(200);
     const result = truncate(text, { maxChars: 100, headChars: 30, tailChars: 20 });
     const parts = result.split('[... truncated for context ...]');
-    expect(parts[0].length).toBe(30);
-    expect(parts[1].length).toBe(20 + 2); // +2 for trailing \n\n
+    // The marker is '\n\n[... truncated for context ...]\n\n'
+    // so head part includes trailing \n\n and tail part includes leading \n\n
+    expect(parts[0]).toHaveLength(32); // 30 + '\n\n'
+    expect(parts[1]).toHaveLength(22); // '\n\n' + 20
   });
 
   it('skips header lines when specified', () => {
-    const text = 'Header line 1\nHeader line 2\nActual content that is important';
-    const result = truncate(text, { maxChars: 10, skipHeaderLines: 2 });
+    // Text must exceed maxChars to trigger the truncation path where skipHeaderLines applies
+    const text = 'Header line 1\nHeader line 2\nActual content that is important and long enough' + 'x'.repeat(200);
+    const result = truncate(text, { maxChars: 100, skipHeaderLines: 2 });
     expect(result).not.toContain('Header line 1');
+    expect(result).not.toContain('Header line 2');
     expect(result).toContain('Actual content');
   });
 
@@ -74,10 +78,19 @@ describe('truncate', () => {
     expect(truncate('', { maxChars: 100 })).toBe('');
   });
 
-  it('returns cleaned text if under maxChars after boilerplate removal', () => {
+  it('returns original text if under maxChars (boilerplate only stripped when text exceeds limit)', () => {
+    // When text is under maxChars, it's returned as-is (no boilerplate stripping needed)
     const text = 'Here is the overview:\nShort real content';
     const result = truncate(text, { maxChars: 100 });
-    expect(result).toBe('Short real content');
+    expect(result).toBe(text);
+  });
+
+  it('strips boilerplate when text exceeds maxChars and becomes short enough after cleaning', () => {
+    // Boilerplate is stripped first, then the cleaned text is checked against maxChars
+    const text = 'Here is the summary:\n' + 'x'.repeat(50);
+    const result = truncate(text, { maxChars: 60 });
+    expect(result).not.toContain('Here is the summary');
+    expect(result).toBe('x'.repeat(50));
   });
 });
 

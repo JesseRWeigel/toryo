@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsup src/server.ts --format esm --dts --outDir dist",
+    "build": "tsup src/server.ts --format esm --outDir dist && cp src/client.html dist/client.html",
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js"
   },

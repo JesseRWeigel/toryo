@@ -8,7 +8,8 @@
     "build": "npm run build -w packages/core && npm run build -w packages/adapters && npm run build -w packages/cli",
     "dev": "npm run dev --workspace=packages/cli",
     "test": "npm test --workspaces --if-present",
-    "lint": "eslint packages/*/src/**/*.ts"
+    "lint": "eslint packages/*/src/**/*.ts",
+    "dashboard": "npm run dev --workspace=packages/dashboard"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

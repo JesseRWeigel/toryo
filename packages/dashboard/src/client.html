@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Toryo Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #09090b;
+      --bg-secondary: #18181b;
+      --bg-tertiary: #27272a;
+      --border: #3f3f46;
+      --border-subtle: #27272a;
+      --text-primary: #fafafa;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --accent: #06b6d4;
+      --accent-dim: #083344;
+      --green: #22c55e;
+      --green-dim: #052e16;
+      --yellow: #eab308;
+      --yellow-dim: #422006;
+      --red: #ef4444;
+      --red-dim: #450a0a;
+      --blue: #3b82f6;
+      --font-mono: 'Geist Mono', ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+      --radius: 8px;
+    }
+
+    body {
+      font-family: var(--font-mono);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .header {
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-title {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .header h1 .kanji {
+      font-size: 24px;
+      margin-right: 4px;
+    }
+
+    .header .subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .connection-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+      transition: background 0.3s;
+    }
+
+    .connection-dot.connected {
+      background: var(--green);
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .metric-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .metric-card .label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .metric-card .value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .metric-card .value .unit {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+
+    .section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .section-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .agents-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      padding: 20px;
+    }
+
+    .agent-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius);
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .agent-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+    }
+
+    .agent-card.supervised::before { background: var(--red); }
+    .agent-card.guided::before { background: var(--yellow); }
+    .agent-card.autonomous::before { background: var(--green); }
+
+    .agent-name {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .agent-adapter {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .agent-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .agent-stat {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .agent-stat .stat-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .agent-stat .stat-value {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .autonomy-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+
+    .autonomy-badge.supervised {
+      background: var(--red-dim);
+      color: var(--red);
+      border: 1px solid var(--red);
+    }
+
+    .autonomy-badge.guided {
+      background: var(--yellow-dim);
+      color: var(--yellow);
+      border: 1px solid var(--yellow);
+    }
+
+    .autonomy-badge.autonomous {
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid var(--green);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    thead th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    thead th:hover {
+      color: var(--text-secondary);
+    }
+
+    thead th .sort-arrow {
+      margin-left: 4px;
+      opacity: 0.4;
+    }
+
+    thead th.sorted .sort-arrow {
+      opacity: 1;
+      color: var(--accent);
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background 0.15s;
+    }
+
+    tbody tr:hover {
+      background: var(--bg-tertiary);
+    }
+
+    tbody td {
+      padding: 10px 16px;
+      white-space: nowrap;
+    }
+
+    .status-keep { color: var(--green); }
+    .status-discard { color: var(--red); }
+    .status-crash { color: var(--text-muted); }
+    .status-skip { color: var(--yellow); }
+
+    .row-keep { border-left: 3px solid var(--green); }
+    .row-discard { border-left: 3px solid var(--red); }
+    .row-crash { border-left: 3px solid var(--text-muted); }
+    .row-skip { border-left: 3px solid var(--yellow); }
+
+    .score-cell {
+      font-weight: 600;
+    }
+
+    .score-high { color: var(--green); }
+    .score-mid { color: var(--yellow); }
+    .score-low { color: var(--red); }
+
+    .event-feed {
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .event-item {
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 12px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .event-item:last-child {
+      border-bottom: none;
+    }
+
+    .event-time {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      font-size: 11px;
+      min-width: 75px;
+    }
+
+    .event-type {
+      font-weight: 600;
+      flex-shrink: 0;
+      min-width: 130px;
+    }
+
+    .event-type.cycle-start { color: var(--accent); }
+    .event-type.phase-start { color: var(--blue); }
+    .event-type.phase-complete { color: var(--blue); }
+    .event-type.review-complete { color: var(--yellow); }
+    .event-type.ratchet-keep { color: var(--green); }
+    .event-type.ratchet-revert { color: var(--red); }
+    .event-type.ralph-retry { color: var(--yellow); }
+    .event-type.cycle-complete { color: var(--accent); }
+    .event-type.metrics-update { color: var(--text-muted); }
+    .event-type.state-full { color: var(--text-muted); }
+
+    .event-detail {
+      color: var(--text-secondary);
+    }
+
+    .event-feed-empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    .empty-state {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      .metrics-row { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .metrics-row { grid-template-columns: 1fr; }
+      .container { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-title">
+      <h1><span class="kanji">棟梁</span> Toryo</h1>
+      <span class="subtitle">Intelligent Agent Orchestrator</span>
+    </div>
+    <div class="connection-status">
+      <div class="connection-dot" id="connDot"></div>
+      <span id="connLabel">Disconnected</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="label">Cycles Completed</div>
+        <div class="value" id="metricCycles">--</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Total Tasks</div>
+        <div class="value" id="metricTasks">--</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Success Rate</div>
+        <div class="value" id="metricSuccess">--<span class="unit">%</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Avg Score</div>
+        <div class="value" id="metricAvgScore">--</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">Agent Status</div>
+      <div class="agents-grid" id="agentsGrid">
+        <div class="empty-state">No agent data yet</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">Results</div>
+      <div class="table-wrap">
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th data-col="cycle">Cycle <span class="sort-arrow">&#9650;</span></th>
+              <th data-col="task">Task <span class="sort-arrow">&#9650;</span></th>
+              <th data-col="agent">Agent <span class="sort-arrow">&#9650;</span></th>
+              <th data-col="score">Score <span class="sort-arrow">&#9650;</span></th>
+              <th data-col="status">Status <span class="sort-arrow">&#9650;</span></th>
+              <th data-col="description">Description <span class="sort-arrow">&#9650;</span></th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody">
+            <tr><td colspan="6" class="empty-state">No results yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">Live Event Feed</div>
+      <div class="event-feed" id="eventFeed">
+        <div class="event-feed-empty">Waiting for events...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- State ---
+    let metrics = null;
+    let results = [];
+    let events = [];
+    let sortCol = 'cycle';
+    let sortDir = 'desc';
+    const MAX_EVENTS = 200;
+
+    // --- Escape HTML safely ---
+    function esc(str) {
+      if (str == null) return '';
+      const d = document.createElement('div');
+      d.textContent = String(str);
+      return d.innerHTML;
+    }
+
+    // --- WebSocket ---
+    let ws = null;
+    let reconnectTimer = null;
+
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(proto + '//' + location.host + '/ws');
+
+      ws.onopen = function() {
+        document.getElementById('connDot').classList.add('connected');
+        document.getElementById('connLabel').textContent = 'Connected';
+        if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+      };
+
+      ws.onclose = function() {
+        document.getElementById('connDot').classList.remove('connected');
+        document.getElementById('connLabel').textContent = 'Disconnected';
+        reconnectTimer = setTimeout(connectWS, 2000);
+      };
+
+      ws.onerror = function() { ws.close(); };
+
+      ws.onmessage = function(e) {
+        try {
+          var msg = JSON.parse(e.data);
+          handleMessage(msg);
+        } catch(err) { /* ignore parse errors */ }
+      };
+    }
+
+    function handleMessage(msg) {
+      if (msg.type === 'state:full') {
+        if (msg.metrics) { metrics = msg.metrics; renderMetrics(); renderAgents(); }
+        if (msg.results) { results = msg.results; renderResults(); }
+        addEvent({ type: 'state:full', detail: 'Full state refresh', timestamp: msg.timestamp });
+      } else if (msg.type !== 'pong') {
+        addEvent(msg);
+      }
+    }
+
+    function addEvent(evt) {
+      events.unshift({
+        type: evt.type,
+        detail: evt.detail || formatEventDetail(evt),
+        _time: evt.timestamp || new Date().toISOString(),
+      });
+      if (events.length > MAX_EVENTS) events.length = MAX_EVENTS;
+      renderEvents();
+    }
+
+    // --- Rendering: DOM-based (no innerHTML with untrusted data) ---
+
+    function renderMetrics() {
+      if (!metrics) return;
+      document.getElementById('metricCycles').textContent = metrics.cyclesCompleted != null ? metrics.cyclesCompleted : '--';
+      document.getElementById('metricTasks').textContent = metrics.totalTasks != null ? metrics.totalTasks : '--';
+
+      var srEl = document.getElementById('metricSuccess');
+      clearChildren(srEl);
+      if (metrics.successRate != null) {
+        srEl.appendChild(document.createTextNode((metrics.successRate * 100).toFixed(1)));
+        var unitSpan = document.createElement('span');
+        unitSpan.className = 'unit';
+        unitSpan.textContent = '%';
+        srEl.appendChild(unitSpan);
+      } else {
+        srEl.appendChild(document.createTextNode('--'));
+        var unitSpan2 = document.createElement('span');
+        unitSpan2.className = 'unit';
+        unitSpan2.textContent = '%';
+        srEl.appendChild(unitSpan2);
+      }
+
+      var agents = Object.values(metrics.agents || {});
+      var avgEl = document.getElementById('metricAvgScore');
+      if (agents.length > 0) {
+        var totalWeighted = agents.reduce(function(s, a) { return s + a.avgScore * a.tasksCompleted; }, 0);
+        var totalTasks = agents.reduce(function(s, a) { return s + a.tasksCompleted; }, 0);
+        avgEl.textContent = totalTasks > 0 ? (totalWeighted / totalTasks).toFixed(1) : '--';
+      } else {
+        avgEl.textContent = '--';
+      }
+    }
+
+    function renderAgents() {
+      var grid = document.getElementById('agentsGrid');
+      clearChildren(grid);
+
+      if (!metrics || !metrics.agents || Object.keys(metrics.agents).length === 0) {
+        var empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'No agent data yet';
+        grid.appendChild(empty);
+        return;
+      }
+
+      Object.values(metrics.agents).forEach(function(agent) {
+        var level = getAutonomyLevel(agent);
+        var card = document.createElement('div');
+        card.className = 'agent-card ' + level;
+
+        var nameEl = document.createElement('div');
+        nameEl.className = 'agent-name';
+        nameEl.textContent = agent.agentId;
+        card.appendChild(nameEl);
+
+        var adapterEl = document.createElement('div');
+        adapterEl.className = 'agent-adapter';
+        adapterEl.textContent = agent.adapter || 'unknown';
+        card.appendChild(adapterEl);
+
+        var badge = document.createElement('span');
+        badge.className = 'autonomy-badge ' + level;
+        badge.textContent = level;
+        card.appendChild(badge);
+
+        var statsGrid = document.createElement('div');
+        statsGrid.className = 'agent-stats';
+
+        statsGrid.appendChild(createStat('Trust', (agent.trustScore != null ? agent.trustScore : agent.avgScore * 0.1).toFixed(2)));
+        statsGrid.appendChild(createStat('Tasks', String(agent.tasksCompleted)));
+        var avgStat = createStat('Avg Score', agent.avgScore.toFixed(1));
+        avgStat.querySelector('.stat-value').classList.add(scoreColorClass(agent.avgScore));
+        statsGrid.appendChild(avgStat);
+        statsGrid.appendChild(createStat('Success', (agent.successRate * 100).toFixed(0) + '%'));
+
+        card.appendChild(statsGrid);
+        grid.appendChild(card);
+      });
+    }
+
+    function createStat(label, value) {
+      var el = document.createElement('div');
+      el.className = 'agent-stat';
+      var lbl = document.createElement('span');
+      lbl.className = 'stat-label';
+      lbl.textContent = label;
+      var val = document.createElement('span');
+      val.className = 'stat-value';
+      val.textContent = value;
+      el.appendChild(lbl);
+      el.appendChild(val);
+      return el;
+    }
+
+    function getAutonomyLevel(agent) {
+      if (agent.autonomyLevel) return agent.autonomyLevel;
+      var trust = agent.trustScore != null ? agent.trustScore : (agent.avgScore / 10);
+      if (trust >= 0.8) return 'autonomous';
+      if (trust >= 0.5) return 'guided';
+      return 'supervised';
+    }
+
+    function renderResults() {
+      var tbody = document.getElementById('resultsBody');
+      clearChildren(tbody);
+
+      if (!results || results.length === 0) {
+        var tr = document.createElement('tr');
+        var td = document.createElement('td');
+        td.colSpan = 6;
+        td.className = 'empty-state';
+        td.textContent = 'No results yet';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
+      }
+
+      var sorted = results.slice().sort(function(a, b) {
+        var va = a[sortCol], vb = b[sortCol];
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      sorted.forEach(function(r) {
+        var tr = document.createElement('tr');
+        tr.className = 'row-' + r.status;
+
+        var cells = [
+          { text: String(r.cycle), cls: '' },
+          { text: r.task, cls: '' },
+          { text: r.agent, cls: '' },
+          { text: r.score.toFixed(1), cls: 'score-cell ' + scoreColorClass(r.score) },
+          { text: r.status, cls: 'status-' + r.status },
+          { text: r.description, cls: '' },
+        ];
+
+        cells.forEach(function(cell) {
+          var td = document.createElement('td');
+          td.textContent = cell.text;
+          if (cell.cls) td.className = cell.cls;
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+
+      // Update sort indicators
+      document.querySelectorAll('#resultsTable thead th').forEach(function(th) {
+        var isSorted = th.dataset.col === sortCol;
+        th.classList.toggle('sorted', isSorted);
+        var arrow = th.querySelector('.sort-arrow');
+        if (isSorted) {
+          arrow.textContent = sortDir === 'asc' ? '\u25B2' : '\u25BC';
+        } else {
+          arrow.textContent = '\u25B2';
+        }
+      });
+    }
+
+    function renderEvents() {
+      var feed = document.getElementById('eventFeed');
+      clearChildren(feed);
+
+      if (events.length === 0) {
+        var empty = document.createElement('div');
+        empty.className = 'event-feed-empty';
+        empty.textContent = 'Waiting for events...';
+        feed.appendChild(empty);
+        return;
+      }
+
+      events.forEach(function(evt) {
+        var item = document.createElement('div');
+        item.className = 'event-item';
+
+        var timeSpan = document.createElement('span');
+        timeSpan.className = 'event-time';
+        timeSpan.textContent = formatTime(evt._time);
+        item.appendChild(timeSpan);
+
+        var typeSpan = document.createElement('span');
+        typeSpan.className = 'event-type ' + (evt.type || '').replace(/[:.]/g, '-');
+        typeSpan.textContent = evt.type || 'unknown';
+        item.appendChild(typeSpan);
+
+        var detailSpan = document.createElement('span');
+        detailSpan.className = 'event-detail';
+        detailSpan.textContent = evt.detail || '';
+        item.appendChild(detailSpan);
+
+        feed.appendChild(item);
+      });
+    }
+
+    function formatEventDetail(evt) {
+      switch (evt.type) {
+        case 'cycle:start': return 'Cycle ' + evt.cycle + ' - ' + evt.task;
+        case 'phase:start': return 'Cycle ' + evt.cycle + ' - ' + evt.phase + ' by ' + evt.agent;
+        case 'phase:complete': return 'Cycle ' + evt.cycle + ' - ' + evt.phase + ' done' + (evt.result ? ' (' + evt.result.durationMs + 'ms)' : '');
+        case 'review:complete': return 'Cycle ' + evt.cycle + ' - Score: ' + (evt.review ? evt.review.score : '?') + ' (' + (evt.review ? evt.review.verdict : '?') + ')';
+        case 'ratchet:keep': return 'Cycle ' + evt.cycle + ' - Score ' + evt.score + ' accepted';
+        case 'ratchet:revert': return 'Cycle ' + evt.cycle + ' - Score ' + evt.score + ' below threshold, reverted';
+        case 'ralph:retry': return 'Cycle ' + evt.cycle + ' - Retry #' + evt.attempt;
+        case 'cycle:complete': return 'Cycle ' + evt.cycle + ' - ' + (evt.result ? evt.result.verdict : '?') + ' (' + (evt.result ? evt.result.finalScore : '?') + ')';
+        case 'metrics:update': return 'Metrics refreshed';
+        default: return JSON.stringify(evt).slice(0, 120);
+      }
+    }
+
+    // --- Helpers ---
+
+    function clearChildren(el) {
+      while (el.firstChild) el.removeChild(el.firstChild);
+    }
+
+    function scoreColorClass(score) {
+      if (score >= 7) return 'score-high';
+      if (score >= 5) return 'score-mid';
+      return 'score-low';
+    }
+
+    function formatTime(iso) {
+      try {
+        var d = new Date(iso);
+        return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      } catch(e) { return '--:--:--'; }
+    }
+
+    // --- Sort handler ---
+    document.querySelectorAll('#resultsTable thead th').forEach(function(th) {
+      th.addEventListener('click', function() {
+        var col = th.dataset.col;
+        if (sortCol === col) {
+          sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortCol = col;
+          sortDir = (col === 'cycle' || col === 'score') ? 'desc' : 'asc';
+        }
+        renderResults();
+      });
+    });
+
+    // --- Initial load via REST ---
+    async function loadInitial() {
+      try {
+        var responses = await Promise.all([
+          fetch('/api/metrics'),
+          fetch('/api/results'),
+        ]);
+        metrics = await responses[0].json();
+        results = await responses[1].json();
+        renderMetrics();
+        renderAgents();
+        renderResults();
+      } catch (e) {
+        console.error('Failed to load initial data:', e);
+      }
+    }
+
+    // --- Heartbeat ---
+    setInterval(function() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send('ping');
+      }
+    }, 30000);
+
+    // --- Boot ---
+    loadInitial();
+    connectWS();
+  </script>
+</body>
+</html>

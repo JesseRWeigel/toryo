@@ -1,7 +1,16 @@
 {
   "name": "toryo",
   "version": "0.1.0",
+  "description": "棟梁 The intelligent agent orchestrator — chains AI coding agents with trust-based delegation and quality ratcheting",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JesseRWeigel/toryo.git",
+    "directory": "packages/cli"
+  },
+  "keywords": ["ai", "agent", "orchestrator", "cli", "automation", "claude", "aider", "gemini", "ollama"],
+  "files": ["dist"],
   "bin": {
     "toryo": "dist/index.js"
   },
