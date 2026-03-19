@@ -9,14 +9,22 @@
     "url": "https://github.com/JesseRWeigel/toryo.git",
     "directory": "packages/cli"
   },
+  "homepage": "https://github.com/JesseRWeigel/toryo#readme",
+  "bugs": {
+    "url": "https://github.com/JesseRWeigel/toryo/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "keywords": ["ai", "agent", "orchestrator", "cli", "automation", "claude", "aider", "gemini", "ollama"],
-  "files": ["dist"],
+  "files": ["dist", "README.md"],
   "bin": {
     "toryo": "dist/index.js"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",
-    "dev": "tsup src/index.ts --format esm --watch --onSuccess 'node dist/index.js'"
+    "dev": "tsup src/index.ts --format esm --watch --onSuccess 'node dist/index.js'",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@toryo/core": "*",

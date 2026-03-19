@@ -11,8 +11,15 @@
     "url": "https://github.com/JesseRWeigel/toryo.git",
     "directory": "packages/adapters"
   },
+  "homepage": "https://github.com/JesseRWeigel/toryo/tree/main/packages/adapters#readme",
+  "bugs": {
+    "url": "https://github.com/JesseRWeigel/toryo/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "keywords": ["ai", "agent", "adapter", "claude", "aider", "gemini", "ollama", "codex"],
-  "files": ["dist", "src"],
+  "files": ["dist", "README.md"],
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -22,7 +29,8 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",
     "dev": "tsup src/index.ts --format esm --dts --watch",
-    "test": "echo 'No tests yet'"
+    "test": "echo 'No tests yet'",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@toryo/core": "*"

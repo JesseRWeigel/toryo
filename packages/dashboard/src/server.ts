@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { createNodeWebSocket } from '@hono/node-ws';
 import { watch } from 'chokidar';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, readdir, unlink, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { resolve, join, extname, basename } from 'node:path';
 import type { WSContext } from 'hono/ws';
 
 // --- Configuration ---
@@ -116,6 +116,72 @@ app.get('/api/metrics', async (c) => {
 app.get('/api/results', async (c) => {
   const results = await readResults();
   return c.json(results);
+});
+
+// --- Spec editor API ---
+
+const SPECS_DIR = resolve(process.env.TORYO_SPECS_DIR || 'specs');
+
+app.get('/api/specs', async (c) => {
+  try {
+    if (!existsSync(SPECS_DIR)) return c.json([]);
+    const files = await readdir(SPECS_DIR);
+    const specs = [];
+    for (const file of files.filter((f) => extname(f) === '.md').sort()) {
+      const content = await readFile(join(SPECS_DIR, file), 'utf-8');
+      specs.push({ id: basename(file, '.md'), filename: file, content });
+    }
+    return c.json(specs);
+  } catch {
+    return c.json([]);
+  }
+});
+
+app.get('/api/specs/:id', async (c) => {
+  const id = c.req.param('id');
+  const filePath = join(SPECS_DIR, `${id}.md`);
+  try {
+    const content = await readFile(filePath, 'utf-8');
+    return c.json({ id, filename: `${id}.md`, content });
+  } catch {
+    return c.json({ error: 'Spec not found' }, 404);
+  }
+});
+
+app.put('/api/specs/:id', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.json<{ content: string }>();
+  if (!body.content) return c.json({ error: 'content is required' }, 400);
+
+  await mkdir(SPECS_DIR, { recursive: true });
+  const filePath = join(SPECS_DIR, `${id}.md`);
+  await writeFile(filePath, body.content, 'utf-8');
+  return c.json({ id, filename: `${id}.md`, saved: true });
+});
+
+app.post('/api/specs', async (c) => {
+  const body = await c.req.json<{ id: string; content: string }>();
+  if (!body.id || !body.content) return c.json({ error: 'id and content are required' }, 400);
+
+  const safeId = body.id.replace(/[^a-z0-9-]/gi, '-').toLowerCase();
+  await mkdir(SPECS_DIR, { recursive: true });
+  const filePath = join(SPECS_DIR, `${safeId}.md`);
+
+  if (existsSync(filePath)) return c.json({ error: 'Spec already exists' }, 409);
+
+  await writeFile(filePath, body.content, 'utf-8');
+  return c.json({ id: safeId, filename: `${safeId}.md`, saved: true }, 201);
+});
+
+app.delete('/api/specs/:id', async (c) => {
+  const id = c.req.param('id');
+  const filePath = join(SPECS_DIR, `${id}.md`);
+  try {
+    await unlink(filePath);
+    return c.json({ id, deleted: true });
+  } catch {
+    return c.json({ error: 'Spec not found' }, 404);
+  }
 });
 
 // WebSocket endpoint

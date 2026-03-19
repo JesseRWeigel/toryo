@@ -17,6 +17,7 @@ import { createMetrics } from './metrics.js';
 import { processOutput, saveToFile } from './extraction.js';
 import { truncateForPhase } from './truncation.js';
 import { createNotifier, shouldNotify, formatNotification } from './notifications.js';
+import { createKnowledgeStore } from './knowledge.js';
 
 interface OrchestratorOptions {
   config: ToryoConfig;
@@ -67,6 +68,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
   }
 
   const notifier = createNotifier(config.notifications);
+  const knowledge = createKnowledgeStore(config.outputDir);
 
   function emit(event: ToryoEvent) {
     onEvent?.(event);
@@ -179,30 +181,71 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     // --- Run work phases (all except last/review phase) ---
     for (const phase of workPhases) {
       const assignment = task.phases.find((p) => p.phase === phase);
-      let agentId: string;
-      if (assignment?.agent && assignment.agent !== 'auto') {
-        agentId = assignment.agent;
-      } else {
-        // Phase-aware agent selection: create a synthetic task that emphasizes this phase
-        const phaseHints: Record<string, string> = {
-          plan: 'plan and design the approach',
-          research: 'research and analyze information',
-          execute: 'implement and write code',
-          review: 'review and score output quality',
-        };
-        const phaseTask = { ...task, description: `${phaseHints[phase] ?? phase}: ${task.description}` };
-        agentId = delegation.selectAgent(phaseTask, config.agents, agentStates);
-      }
 
-      // Build prompt: task description + previous phase output
+      // Build prompt: task description + previous phase output + knowledge context
       const contextFromPrevious = previousOutput
         ? `\n\n## Context from previous phase\n${truncateForPhase(previousOutput)}`
         : '';
-      const prompt = `${task.description}\n\n## Acceptance Criteria\n${task.acceptanceCriteria.map((c) => `- ${c}`).join('\n')}${contextFromPrevious}`;
+      const knowledgeContext = await knowledge.toContext(2000);
+      const knowledgeSection = knowledgeContext ? `\n\n${knowledgeContext}` : '';
+      const prompt = `${task.description}\n\n## Acceptance Criteria\n${task.acceptanceCriteria.map((c) => `- ${c}`).join('\n')}${contextFromPrevious}${knowledgeSection}`;
 
-      const result = await runPhase(phase, agentId, prompt, cycleNum);
-      phaseResults.push(result);
-      previousOutput = result.output;
+      // --- Parallel execution: run multiple agents concurrently ---
+      if (assignment?.parallel && assignment.parallel.agents.length > 0) {
+        const parallelResults = await Promise.all(
+          assignment.parallel.agents.map((id) => runPhase(phase, id, prompt, cycleNum)),
+        );
+
+        let mergedResult: PhaseResult;
+        if (assignment.parallel.merge === 'best') {
+          // Pick the result with the highest score (heuristic: longest output wins as proxy)
+          // For a proper "best" strategy, score each output and pick the highest
+          const scored = parallelResults.map((r) => ({
+            result: r,
+            score: parseScore(r.output),
+          }));
+          // If no scores found (all 0), fall back to longest output
+          const hasScores = scored.some((s) => s.score > 0);
+          if (hasScores) {
+            scored.sort((a, b) => b.score - a.score);
+          } else {
+            scored.sort((a, b) => b.result.output.length - a.result.output.length);
+          }
+          mergedResult = scored[0].result;
+        } else {
+          // 'concatenate': combine all outputs
+          mergedResult = {
+            phase,
+            agentId: assignment.parallel.agents.join('+'),
+            output: parallelResults.map((r) => `## Output from ${r.agentId}\n${r.output}`).join('\n\n'),
+            durationMs: Math.max(...parallelResults.map((r) => r.durationMs)),
+            extractions: parallelResults.flatMap((r) => r.extractions),
+          };
+        }
+
+        phaseResults.push(mergedResult);
+        previousOutput = mergedResult.output;
+      } else {
+        // --- Single agent execution (original path) ---
+        let agentId: string;
+        if (assignment?.agent && assignment.agent !== 'auto') {
+          agentId = assignment.agent;
+        } else {
+          // Phase-aware agent selection: create a synthetic task that emphasizes this phase
+          const phaseHints: Record<string, string> = {
+            plan: 'plan and design the approach',
+            research: 'research and analyze information',
+            execute: 'implement and write code',
+            review: 'review and score output quality',
+          };
+          const phaseTask = { ...task, description: `${phaseHints[phase] ?? phase}: ${task.description}` };
+          agentId = delegation.selectAgent(phaseTask, config.agents, agentStates);
+        }
+
+        const result = await runPhase(phase, agentId, prompt, cycleNum);
+        phaseResults.push(result);
+        previousOutput = result.output;
+      }
     }
 
     // --- Commit before QA ---
@@ -334,6 +377,18 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     };
 
     emit({ type: 'cycle:complete', cycle: cycleNum, result: cycleResult });
+
+    // Save cycle result to knowledge store for cross-agent context sharing
+    const lastPhaseOutput = phaseResults.length > 0
+      ? phaseResults[phaseResults.length - 1].output
+      : '';
+    await knowledge.set(
+      `cycle-${cycleNum}-${task.id}`,
+      truncateForPhase(lastPhaseOutput, 1000),
+      executorId,
+      [task.id, phaseResults[phaseResults.length - 1]?.phase ?? 'unknown', verdict],
+    );
+
     return cycleResult;
   }
 

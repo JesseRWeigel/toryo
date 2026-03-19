@@ -56,6 +56,12 @@ export interface PhaseAssignment {
   agent: string;
   /** Phase-specific prompt template (uses {{variables}}) */
   prompt?: string;
+  /** Run multiple agents in parallel for this phase */
+  parallel?: {
+    agents: string[];
+    /** How to combine outputs: 'concatenate' or 'best' (highest-scoring) */
+    merge: 'concatenate' | 'best';
+  };
 }
 
 export const BUILT_IN_PHASES = ['plan', 'research', 'execute', 'review'] as const;

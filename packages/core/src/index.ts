@@ -12,6 +12,8 @@ export { createNotifier, shouldNotify, formatNotification } from './notification
 export type { NotificationProvider } from './notifications.js';
 export { shouldSelfImprove, buildSelfImprovePrompt } from './self-improve.js';
 export type { SelfImproveResult } from './self-improve.js';
+export { createKnowledgeStore } from './knowledge.js';
+export type { KnowledgeEntry } from './knowledge.js';
 
 // Types
 export type {

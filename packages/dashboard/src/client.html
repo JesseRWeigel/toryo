@@ -466,6 +466,38 @@
         <div class="event-feed-empty">Waiting for events...</div>
       </div>
     </div>
+
+    <div class="section">
+      <div class="section-header">
+        Task Specs
+        <button id="newSpecBtn" style="float:right;background:#22d3ee;color:#09090b;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:13px;">+ New Spec</button>
+      </div>
+      <div id="specsList" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
+      <div id="specEditor" style="display:none;">
+        <input id="specId" placeholder="spec-id (e.g. 07-lint-code)" style="width:100%;padding:8px;margin-bottom:8px;background:#1a1a1a;border:1px solid #333;color:#e4e4e7;border-radius:4px;font-family:'Geist Mono',monospace;font-size:13px;" />
+        <textarea id="specContent" rows="18" style="width:100%;padding:8px;background:#1a1a1a;border:1px solid #333;color:#e4e4e7;border-radius:4px;font-family:'Geist Mono',monospace;font-size:13px;resize:vertical;">---
+name: My Task
+difficulty: 0.5
+tags: [example]
+phases:
+  plan: auto
+  research: auto
+  execute: auto
+  review: auto
+---
+
+Describe the task here.
+
+## Acceptance Criteria
+- [ ] First criterion
+</textarea>
+        <div style="margin-top:8px;display:flex;gap:8px;">
+          <button id="saveSpecBtn" style="background:#22d3ee;color:#09090b;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;">Save</button>
+          <button id="deleteSpecBtn" style="background:#ef4444;color:#fff;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;display:none;">Delete</button>
+          <button id="cancelSpecBtn" style="background:#333;color:#e4e4e7;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;">Cancel</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -805,9 +837,77 @@
       }
     }, 30000);
 
+    // --- Spec Editor ---
+    let editingSpecId = null;
+    const specsList = document.getElementById('specsList');
+    const specEditor = document.getElementById('specEditor');
+    const specIdInput = document.getElementById('specId');
+    const specContent = document.getElementById('specContent');
+    const newSpecBtn = document.getElementById('newSpecBtn');
+    const saveSpecBtn = document.getElementById('saveSpecBtn');
+    const deleteSpecBtn = document.getElementById('deleteSpecBtn');
+    const cancelSpecBtn = document.getElementById('cancelSpecBtn');
+
+    async function loadSpecs() {
+      try {
+        const res = await fetch('/api/specs');
+        const specs = await res.json();
+        specsList.innerHTML = specs.length === 0
+          ? '<span style="color:#71717a;font-size:13px;">No specs yet. Click "+ New Spec" to create one.</span>'
+          : specs.map(s => `<button class="spec-chip" data-id="${s.id}" style="background:#27272a;border:1px solid #3f3f46;color:#e4e4e7;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:13px;font-family:'Geist Mono',monospace;">${s.filename}</button>`).join('');
+        specsList.querySelectorAll('.spec-chip').forEach(btn => {
+          btn.onclick = () => openSpec(btn.dataset.id);
+        });
+      } catch { specsList.innerHTML = ''; }
+    }
+
+    async function openSpec(id) {
+      const res = await fetch(`/api/specs/${id}`);
+      const spec = await res.json();
+      editingSpecId = id;
+      specIdInput.value = id;
+      specIdInput.disabled = true;
+      specContent.value = spec.content;
+      deleteSpecBtn.style.display = 'inline-block';
+      specEditor.style.display = 'block';
+    }
+
+    newSpecBtn.onclick = () => {
+      editingSpecId = null;
+      specIdInput.value = '';
+      specIdInput.disabled = false;
+      specContent.value = '---\nname: My Task\ndifficulty: 0.5\ntags: []\nphases:\n  plan: auto\n  execute: auto\n  review: auto\n---\n\nDescribe the task here.\n\n## Acceptance Criteria\n- [ ] First criterion\n';
+      deleteSpecBtn.style.display = 'none';
+      specEditor.style.display = 'block';
+    };
+
+    saveSpecBtn.onclick = async () => {
+      const id = specIdInput.value.trim();
+      const content = specContent.value;
+      if (!id || !content) return;
+      if (editingSpecId) {
+        await fetch(`/api/specs/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) });
+      } else {
+        await fetch('/api/specs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, content }) });
+      }
+      specEditor.style.display = 'none';
+      loadSpecs();
+    };
+
+    deleteSpecBtn.onclick = async () => {
+      if (!editingSpecId || !confirm(`Delete spec "${editingSpecId}"?`)) return;
+      await fetch(`/api/specs/${editingSpecId}`, { method: 'DELETE' });
+      specEditor.style.display = 'none';
+      editingSpecId = null;
+      loadSpecs();
+    };
+
+    cancelSpecBtn.onclick = () => { specEditor.style.display = 'none'; };
+
     // --- Boot ---
     loadInitial();
     connectWS();
+    loadSpecs();
   </script>
 </body>
 </html>

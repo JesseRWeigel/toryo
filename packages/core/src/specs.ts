@@ -5,9 +5,17 @@ import type { TaskSpec, PhaseAssignment } from './types.js';
 
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
+interface SpecPhaseConfig {
+  agent: string;
+  parallel?: {
+    agents: string[];
+    merge: 'concatenate' | 'best';
+  };
+}
+
 interface SpecFrontmatter {
   name?: string;
-  phases?: Record<string, string>;
+  phases?: Record<string, string | SpecPhaseConfig>;
   difficulty?: number;
   tags?: string[];
   acceptance_criteria?: string[];
@@ -55,10 +63,20 @@ export function parseSpec(content: string, defaultId: string): TaskSpec | null {
   const acceptanceCriteria = frontmatter.acceptance_criteria ?? parseAcceptanceCriteria(body);
 
   const phases: PhaseAssignment[] = frontmatter.phases
-    ? Object.entries(frontmatter.phases).map(([phase, agent]) => ({
-        phase,
-        agent,
-      }))
+    ? Object.entries(frontmatter.phases).map(([phase, value]) => {
+        if (typeof value === 'string') {
+          return { phase, agent: value };
+        }
+        // Object form: { agent, parallel? }
+        const assignment: PhaseAssignment = { phase, agent: value.agent };
+        if (value.parallel) {
+          assignment.parallel = {
+            agents: value.parallel.agents,
+            merge: value.parallel.merge,
+          };
+        }
+        return assignment;
+      })
     : defaultPhases();
 
   return {
