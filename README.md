@@ -11,6 +11,8 @@ npx toryo init    # scaffold config + task specs
 npx toryo run     # start orchestration
 ```
 
+**[Documentation](docs/)** | **[Getting Started](docs/getting-started.md)** | **[Configuration](docs/configuration.md)** | **[Contributing](CONTRIBUTING.md)**
+
 ---
 
 ## Why Toryo?
