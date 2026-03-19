@@ -2,6 +2,8 @@
 
 **The intelligent agent orchestrator.** Not just parallel agents — the full self-improving development loop.
 
+> **棟梁 (toryo)** — Japanese for "master builder" or "foreman." The toryo is the person who oversees the entire construction crew, assigns specialists to the right tasks, and ensures every piece meets quality standards before it stays in the structure.
+
 Toryo chains multiple AI coding agents (Claude Code, Aider, Gemini CLI, Codex, Ollama) with spec-driven workflows, trust-based delegation, quality ratcheting, and a real-time dashboard.
 
 ```bash
