@@ -1,0 +1,46 @@
+{
+  "name": "my-project",
+  "agents": {
+    "researcher": {
+      "adapter": "claude-code",
+      "model": "claude-sonnet-4-6",
+      "strengths": ["research", "analysis", "summarization", "finding"],
+      "weaknesses": ["code_writing"],
+      "timeout": 900
+    },
+    "coder": {
+      "adapter": "ollama",
+      "model": "qwen3.5:27b",
+      "strengths": ["code", "architecture", "testing", "implementation"],
+      "weaknesses": ["web_search"],
+      "timeout": 900
+    },
+    "reviewer": {
+      "adapter": "claude-code",
+      "model": "claude-sonnet-4-6",
+      "strengths": ["review", "scoring", "quality", "security"],
+      "timeout": 600
+    }
+  },
+  "tasks": "./specs/",
+  "ratchet": {
+    "threshold": 6.0,
+    "maxRetries": 1,
+    "gitStrategy": "commit-revert"
+  },
+  "delegation": {
+    "initialTrust": 0.5,
+    "scoreWindow": 50,
+    "levels": {
+      "supervised": { "trustRange": [0, 0.6], "minTasks": 0 },
+      "guided": { "trustRange": [0.6, 0.8], "minTasks": 5 },
+      "autonomous": { "trustRange": [0.8, 1.0], "minTasks": 10 }
+    }
+  },
+  "outputDir": ".toryo",
+  "notifications": {
+    "provider": "ntfy",
+    "target": "my-toryo-project",
+    "events": ["breakthrough", "failure", "status"]
+  }
+}

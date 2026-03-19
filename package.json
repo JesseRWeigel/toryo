@@ -1,0 +1,19 @@
+{
+  "name": "toryo",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w packages/core && npm run build -w packages/adapters && npm run build -w packages/cli",
+    "dev": "npm run dev --workspace=packages/cli",
+    "test": "npm test --workspaces --if-present",
+    "lint": "eslint packages/*/src/**/*.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.0.0",
+    "vitest": "^3.0.0"
+  }
+}
