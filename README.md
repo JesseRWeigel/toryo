@@ -1,5 +1,10 @@
 # 棟梁 Toryo
 
+[![CI](https://github.com/JesseRWeigel/toryo/actions/workflows/ci.yml/badge.svg)](https://github.com/JesseRWeigel/toryo/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/toryo-core)](https://www.npmjs.com/package/toryo-core)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue)](https://www.typescriptlang.org/)
+
 **The intelligent agent orchestrator.** Not just parallel agents — the full self-improving development loop.
 
 > **棟梁 (toryo)** — Japanese for "master builder" or "foreman." The toryo is the person who oversees the entire construction crew, assigns specialists to the right tasks, and ensures every piece meets quality standards before it stays in the structure.
@@ -263,6 +268,8 @@ await metrics.appendResult({ cycle: 1, score: 8.5, status: 'keep', ... });
 ```
 
 ## Compared to Other Tools
+
+Most multi-agent tools do **one thing** — run agents in parallel (Composio, AMUX) or define specs (Spec Kit). Toryo is the **full loop**: spec → delegate → execute → review → ratchet → improve.
 
 | Feature | Toryo | Composio | AMUX | CrewAI | Spec Kit |
 |---------|-------|----------|------|--------|----------|
