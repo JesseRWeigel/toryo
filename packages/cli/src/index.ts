@@ -12,6 +12,7 @@ toryo — The intelligent agent orchestrator (棟梁)
 Usage:
   toryo run [--config <path>] [--cycles <n>]    Run orchestration cycles
   toryo status [--config <path>]                Show metrics and agent states
+  toryo dashboard [--config <path>]             Open real-time web dashboard
   toryo init                                    Create example config + specs
   toryo --help                                  Show this help
 
