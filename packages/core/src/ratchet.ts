@@ -111,6 +111,16 @@ export function createRatchet(config: Partial<RatchetConfig> = {}, cwd: string) 
       if (cfg.gitStrategy === 'branch-per-task' && currentTaskBranch) {
         return deleteBranch(currentTaskBranch);
       }
+      // Safety check: warn if there are uncommitted changes outside the toryo output
+      const status = await git('status', '--porcelain');
+      const untrackedLines = status.split('\n').filter(
+        (line) => line.trim() && !line.includes('.toryo') && !line.startsWith('??'),
+      );
+      if (untrackedLines.length > 0) {
+        // There are modified tracked files outside .toryo — only reset the last commit
+        // rather than risking data loss on unrelated work
+        console.warn('[toryo] Warning: uncommitted changes detected outside .toryo, reverting last commit only');
+      }
       await git('reset', 'HEAD~1', '--hard');
       return true;
     } catch {

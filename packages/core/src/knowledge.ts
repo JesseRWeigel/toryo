@@ -23,7 +23,9 @@ interface KnowledgeData {
 
 const KNOWLEDGE_FILE = 'knowledge.json';
 
-export function createKnowledgeStore(outputDir: string) {
+const DEFAULT_MAX_ENTRIES = 200;
+
+export function createKnowledgeStore(outputDir: string, maxEntries = DEFAULT_MAX_ENTRIES) {
   const filePath = join(outputDir, KNOWLEDGE_FILE);
 
   async function load(): Promise<KnowledgeData> {
@@ -66,6 +68,11 @@ export function createKnowledgeStore(outputDir: string) {
       data.entries[idx] = entry;
     } else {
       data.entries.push(entry);
+    }
+
+    // Evict oldest entries if over the limit
+    if (maxEntries > 0 && data.entries.length > maxEntries) {
+      data.entries = data.entries.slice(-maxEntries);
     }
 
     await save(data);

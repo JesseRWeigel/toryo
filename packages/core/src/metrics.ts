@@ -93,24 +93,29 @@ export function createMetrics(outputDir: string) {
       avgScore: 0,
       scores: [],
       successRate: 0,
+      successCount: 0,
     };
 
     const scores = [...existing.scores, score].slice(-scoreWindow);
     const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
     const tasksCompleted = existing.tasksCompleted + 1;
-    const successCount = existing.successRate * existing.tasksCompleted + (passed ? 1 : 0);
+    // Use integer count to avoid floating-point drift
+    const prevCount = existing.successCount ?? Math.round(existing.successRate * existing.tasksCompleted);
+    const successCount = prevCount + (passed ? 1 : 0);
     const successRate = successCount / tasksCompleted;
 
     const totalTasks = metrics.totalTasks + 1;
-    const globalSuccessCount = metrics.successRate * metrics.totalTasks + (passed ? 1 : 0);
+    const globalPrevCount = metrics.successCount ?? Math.round(metrics.successRate * metrics.totalTasks);
+    const globalSuccessCount = globalPrevCount + (passed ? 1 : 0);
 
     return {
       ...metrics,
       totalTasks,
       successRate: globalSuccessCount / totalTasks,
+      successCount: globalSuccessCount,
       agents: {
         ...metrics.agents,
-        [agentId]: { agentId, tasksCompleted, avgScore, scores, successRate },
+        [agentId]: { agentId, tasksCompleted, avgScore, scores, successRate, successCount },
       },
     };
   }

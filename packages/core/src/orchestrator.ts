@@ -88,7 +88,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     agentId: string,
     prompt: string,
     phase: PhaseName,
-  ): Promise<{ output: string; durationMs: number; infraFailure: boolean }> {
+  ): Promise<{ output: string; durationMs: number; infraFailure: boolean; error?: string }> {
     const agentConfig = config.agents[agentId];
     if (!agentConfig) throw new Error(`Unknown agent: ${agentId}`);
 
@@ -147,9 +147,13 @@ export async function createOrchestrator(options: OrchestratorOptions) {
   ): Promise<PhaseResult> {
     emit({ type: 'phase:start', cycle: cycleNum, phase, agent: agentId });
 
-    const start = Date.now();
     const response = await sendToAgent(agentId, prompt, phase);
-    const durationMs = Date.now() - start;
+
+    // Check for infrastructure failures (timeout, connection refused, etc.)
+    if (response.infraFailure) {
+      const errorMsg = response.error ?? 'Unknown infrastructure failure';
+      throw new Error(`[infra] ${phase} phase failed for agent ${agentId}: ${errorMsg}`);
+    }
 
     // Process output for extractions
     const extractions = processOutput(
@@ -168,7 +172,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
       phase,
       agentId,
       output: response.output,
-      durationMs,
+      durationMs: response.durationMs,
       extractions,
     };
 

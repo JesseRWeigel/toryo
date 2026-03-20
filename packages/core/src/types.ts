@@ -159,12 +159,16 @@ export interface AgentMetrics {
   avgScore: number;
   scores: number[];
   successRate: number;
+  /** Integer count — avoids floating-point drift from rate * count */
+  successCount?: number;
 }
 
 export interface GlobalMetrics {
   cyclesCompleted: number;
   totalTasks: number;
   successRate: number;
+  /** Integer count — avoids floating-point drift from rate * count */
+  successCount?: number;
   agents: Record<string, AgentMetrics>;
 }
 
