@@ -345,4 +345,39 @@ describe('createOrchestrator', () => {
     // 2 keeps, 1 discard = 66.7%
     expect(metrics.successRate).toBeCloseTo(0.667, 1);
   });
+
+  describe('score parsing via review output formats', () => {
+    function makeScoreTest(reviewOutput: string, expectedScore: number) {
+      return async () => {
+        const scorer: AgentAdapter = {
+          name: 'format-scorer',
+          async send(): Promise<AdapterResponse> {
+            return { output: reviewOutput, durationMs: 10, infraFailure: false };
+          },
+          async isAvailable() { return true; },
+        };
+        const cfg = makeConfig({
+          agents: {
+            worker: { adapter: 'mock', strengths: ['code', 'plan', 'research'], timeout: 30 },
+            reviewer: { adapter: 'format-scorer', strengths: ['review', 'scoring'], timeout: 30 },
+          },
+          ratchet: { threshold: 1, maxRetries: 0, gitStrategy: 'none' },
+        });
+        const orch = await createOrchestrator({
+          config: cfg,
+          adapters: { mock: createMockAdapter(), 'format-scorer': scorer },
+          cwd: TEST_DIR,
+        });
+        const results = await orch.run([TASK], 1, 1);
+        expect(results[0].finalScore).toBe(expectedScore);
+      };
+    }
+
+    it('parses X/10 format', makeScoreTest('Score: 7/10\nPASS', 7));
+    it('parses X out of 10 format', makeScoreTest('I rate this 8 out of 10. Good job.', 8));
+    it('parses markdown bold Score: **X**', makeScoreTest('Score: **9**\nExcellent work.', 9));
+    it('parses Rating: X', makeScoreTest('Rating: 6.5\nDecent attempt.', 6.5));
+    it('returns 0 when no score found', makeScoreTest('This output is okay I guess.', 0));
+    it('parses decimal scores', makeScoreTest('Score: 7.5/10', 7.5));
+  });
 });
