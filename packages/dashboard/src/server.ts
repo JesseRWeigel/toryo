@@ -137,6 +137,13 @@ app.get('/api/config', async (c) => {
 
 const SPECS_DIR = resolve(process.env.TORYO_SPECS_DIR || 'specs');
 
+/** Resolve a spec path and verify it stays within SPECS_DIR (prevents path traversal) */
+function safeSpecPath(id: string): string | null {
+  const filePath = resolve(SPECS_DIR, `${id}.md`);
+  if (!filePath.startsWith(resolve(SPECS_DIR) + '/')) return null;
+  return filePath;
+}
+
 app.get('/api/specs', async (c) => {
   try {
     if (!existsSync(SPECS_DIR)) return c.json([]);
@@ -154,7 +161,8 @@ app.get('/api/specs', async (c) => {
 
 app.get('/api/specs/:id', async (c) => {
   const id = c.req.param('id');
-  const filePath = join(SPECS_DIR, `${id}.md`);
+  const filePath = safeSpecPath(id);
+  if (!filePath) return c.json({ error: 'Invalid spec ID' }, 400);
   try {
     const content = await readFile(filePath, 'utf-8');
     return c.json({ id, filename: `${id}.md`, content });
@@ -165,11 +173,12 @@ app.get('/api/specs/:id', async (c) => {
 
 app.put('/api/specs/:id', async (c) => {
   const id = c.req.param('id');
+  const filePath = safeSpecPath(id);
+  if (!filePath) return c.json({ error: 'Invalid spec ID' }, 400);
   const body = await c.req.json<{ content: string }>();
   if (!body.content) return c.json({ error: 'content is required' }, 400);
 
   await mkdir(SPECS_DIR, { recursive: true });
-  const filePath = join(SPECS_DIR, `${id}.md`);
   await writeFile(filePath, body.content, 'utf-8');
   return c.json({ id, filename: `${id}.md`, saved: true });
 });
@@ -190,7 +199,8 @@ app.post('/api/specs', async (c) => {
 
 app.delete('/api/specs/:id', async (c) => {
   const id = c.req.param('id');
-  const filePath = join(SPECS_DIR, `${id}.md`);
+  const filePath = safeSpecPath(id);
+  if (!filePath) return c.json({ error: 'Invalid spec ID' }, 400);
   try {
     await unlink(filePath);
     return c.json({ id, deleted: true });

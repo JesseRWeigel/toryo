@@ -21,6 +21,8 @@ export function createNotifier(config?: NotificationConfig): NotificationProvide
   }
 }
 
+const NOTIFY_TIMEOUT = 10_000; // 10 second timeout for notification requests
+
 function createNtfyProvider(topic: string): NotificationProvider {
   const url = topic.startsWith('http') ? topic : `https://ntfy.sh/${topic}`;
 
@@ -34,6 +36,7 @@ function createNtfyProvider(topic: string): NotificationProvider {
           Tags: 'robot',
         },
         body,
+        signal: AbortSignal.timeout(NOTIFY_TIMEOUT),
       });
     },
   };
@@ -46,6 +49,7 @@ function createWebhookProvider(url: string): NotificationProvider {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, body, priority }),
+        signal: AbortSignal.timeout(NOTIFY_TIMEOUT),
       });
     },
   };
@@ -58,6 +62,7 @@ function createSlackProvider(webhookUrl: string): NotificationProvider {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: `*${title}*\n${body}` }),
+        signal: AbortSignal.timeout(NOTIFY_TIMEOUT),
       });
     },
   };
@@ -70,6 +75,7 @@ function createDiscordProvider(webhookUrl: string): NotificationProvider {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: `**${title}**\n${body}` }),
+        signal: AbortSignal.timeout(NOTIFY_TIMEOUT),
       });
     },
   };

@@ -50,7 +50,8 @@ export function createMetrics(outputDir: string) {
       row.agent,
       row.score.toFixed(1),
       row.status,
-      row.description,
+      // Strip tabs and newlines from description to prevent TSV corruption
+      row.description.replace(/[\t\n\r]/g, ' '),
     ].join('\t');
 
     await appendFile(resultsPath, line + '\n');

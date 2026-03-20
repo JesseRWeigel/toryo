@@ -8,7 +8,7 @@ interface CodeBlock {
   lines: number;
 }
 
-const CODE_BLOCK_RE = /```(\w+)?\n([\s\S]*?)```/g;
+const CODE_BLOCK_RE = /```([^\n]*?)\n([\s\S]*?)```/g;
 const SKILL_FRONTMATTER_RE = /^---\n([\s\S]*?)\n---/;
 
 export function findCodeBlocks(markdown: string): CodeBlock[] {
@@ -19,7 +19,7 @@ export function findCodeBlocks(markdown: string): CodeBlock[] {
   CODE_BLOCK_RE.lastIndex = 0;
 
   while ((match = CODE_BLOCK_RE.exec(markdown)) !== null) {
-    const language = match[1] ?? 'text';
+    const language = match[1]?.trim() || 'text';
     const content = match[2].trim();
     const lines = content.split('\n').length;
     blocks.push({ language, content, lines });
@@ -73,7 +73,9 @@ export function processOutput(
     // Skills (SKILL.md blocks)
     if (saveSkills && isSkillBlock(block)) {
       const nameMatch = block.content.match(/name:\s*(.+)/);
-      const skillName = nameMatch?.[1]?.trim() ?? `skill-${timestamp}`;
+      const rawName = nameMatch?.[1]?.trim() ?? `skill-${timestamp}`;
+      // Sanitize skill name to prevent path traversal
+      const skillName = rawName.replace(/[^a-z0-9-]/gi, '-').toLowerCase();
       const path = join(outputDir, 'skills', skillName, 'SKILL.md');
 
       items.push({
