@@ -23,6 +23,8 @@ Options:
   --cycles, -n    Max cycles to run (default: unlimited)
   --task, -t      Run only the task matching this ID (substring match)
   --dry-run       Show what would run without executing
+  --verbose       Show all events including extraction saves
+  --quiet         Show only cycle results (no phase details)
 `;
 
 async function main() {
@@ -210,7 +212,23 @@ async function runCommand(args: string[]) {
     config,
     adapters,
     cwd,
-    onEvent: (event) => console.log(formatEvent(event)),
+    onEvent: (event) => {
+      const verbose = args.includes('--verbose');
+      const quiet = args.includes('--quiet');
+
+      // In quiet mode, only show cycle-level events
+      if (quiet) {
+        if (event.type === 'cycle:start' || event.type === 'cycle:complete' || event.type === 'review:complete') {
+          console.log(formatEvent(event));
+        }
+        return;
+      }
+
+      // In normal mode, skip extraction saves (noisy). Show with --verbose.
+      if (event.type === 'extraction:saved' && !verbose) return;
+
+      console.log(formatEvent(event));
+    },
   });
 
   // Load starting cycle from metrics
@@ -379,6 +397,10 @@ Focus on:
       },
     },
     outputDir: '.toryo',
+    context: {
+      projectDir: '.',
+      maxContextChars: 4000,
+    },
     notifications: {
       provider: 'none',
       target: '',
