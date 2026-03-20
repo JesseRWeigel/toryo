@@ -3,19 +3,20 @@ import type { AdapterSendOptions } from 'toryo-core';
 
 /**
  * Adapter for Claude Code CLI (claude).
- * Uses --print mode for non-interactive single-prompt execution.
+ * Uses --print mode with stdin for non-interactive single-prompt execution.
+ * Stdin avoids OS argument length limits on large prompts.
  */
 export class ClaudeCodeAdapter extends CliAdapter {
   name = 'claude-code';
 
   buildCommand(options: AdapterSendOptions) {
-    const args = ['--print', '{{PROMPT}}'];
+    const args = ['--print', '-'];
 
     if (options.model) {
       args.unshift('--model', options.model);
     }
 
-    return { command: 'claude', args };
+    return { command: 'claude', args, useStdin: true };
   }
 
   parseOutput(stdout: string): string {

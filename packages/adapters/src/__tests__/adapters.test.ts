@@ -16,19 +16,20 @@ describe('ClaudeCodeAdapter', () => {
     expect(adapter.name).toBe('claude-code');
   });
 
-  it('builds command with --print and prompt placeholder', () => {
-    const { command, args } = adapter.buildCommand({
+  it('builds command with --print and stdin mode', () => {
+    const { command, args, useStdin } = adapter.buildCommand({
       agentId: 'test',
       prompt: 'test prompt',
       timeout: 60,
     });
     expect(command).toBe('claude');
     expect(args).toContain('--print');
-    expect(args).toContain('{{PROMPT}}');
+    expect(args).toContain('-');
+    expect(useStdin).toBe(true);
   });
 
   it('includes --model when model is specified', () => {
-    const { args } = adapter.buildCommand({
+    const { args, useStdin } = adapter.buildCommand({
       agentId: 'test',
       prompt: 'test',
       timeout: 60,
@@ -36,6 +37,7 @@ describe('ClaudeCodeAdapter', () => {
     });
     expect(args).toContain('--model');
     expect(args).toContain('claude-sonnet-4-6');
+    expect(useStdin).toBe(true);
   });
 
   it('parseOutput trims whitespace', () => {
