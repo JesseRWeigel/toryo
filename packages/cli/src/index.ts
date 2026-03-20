@@ -21,6 +21,7 @@ Options:
   --config, -c    Path to toryo.config.json (default: ./toryo.config.json)
   --cycles, -n    Max cycles to run (default: unlimited)
   --task, -t      Run only the task matching this ID (substring match)
+  --dry-run       Show what would run without executing
 `;
 
 async function main() {
@@ -111,8 +112,11 @@ function formatEvent(event: ToryoEvent): string {
       return `[${time}]   ✗ REVERT (${event.score}/10)`;
     case 'ralph:retry':
       return `[${time}]   ↺ Ralph Loop retry ${event.attempt}`;
-    case 'cycle:complete':
-      return `[${time}] ● Cycle ${event.cycle} complete: ${event.result.verdict} (${event.result.finalScore}/10)`;
+    case 'cycle:complete': {
+      const totalMs = event.result.phases.reduce((s, p) => s + p.durationMs, 0);
+      const duration = totalMs > 60000 ? `${(totalMs / 60000).toFixed(1)}m` : `${(totalMs / 1000).toFixed(0)}s`;
+      return `[${time}] ● Cycle ${event.cycle} complete: ${event.result.verdict} (${event.result.finalScore}/10) in ${duration}`;
+    }
     case 'metrics:update':
       return `[${time}]   📊 ${event.metrics.cyclesCompleted} cycles, ${(event.metrics.successRate * 100).toFixed(0)}% success`;
     case 'extraction:saved':
@@ -168,6 +172,17 @@ async function runCommand(args: string[]) {
   console.log(`  Tasks: ${tasks.map((t) => t.id).join(', ')}`);
   console.log(`  Ratchet threshold: ${config.ratchet.threshold}/10`);
   console.log(`  Max cycles: ${maxCycles ?? '∞'}\n`);
+
+  // Dry run — show config and exit
+  if (args.includes('--dry-run')) {
+    console.log('  [dry-run] Would execute the above configuration.');
+    console.log(`  [dry-run] Tasks: ${tasks.map((t) => t.id).join(' → ')}`);
+    for (const t of tasks) {
+      console.log(`    ${t.id}: ${t.phases.map((p) => `${p.phase}(${p.agent})`).join(' → ')}`);
+    }
+    console.log('\n  Run without --dry-run to start orchestration.');
+    return;
+  }
 
   const orchestrator = await createOrchestrator({
     config,

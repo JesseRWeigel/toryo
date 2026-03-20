@@ -151,6 +151,8 @@ export interface ResultRow {
   score: number;
   status: CycleVerdict;
   description: string;
+  /** Total cycle duration in milliseconds (optional for backward compat) */
+  durationMs?: number;
 }
 
 export interface AgentMetrics {

@@ -185,6 +185,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
 
   async function runCycle(cycleNum: number, task: TaskSpec): Promise<CycleResult> {
     emit({ type: 'cycle:start', cycle: cycleNum, task: task.id });
+    const cycleStart = Date.now();
 
     const phases = config.phases ?? ['plan', 'research', 'execute', 'review'];
     const reviewPhase = phases[phases.length - 1]; // Last phase is always the quality gate
@@ -380,6 +381,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     await metrics.saveMetrics(globalMetrics);
 
     // Log to results.tsv
+    const cycleDurationMs = Date.now() - cycleStart;
     const row: ResultRow = {
       timestamp: new Date().toISOString(),
       cycle: cycleNum,
@@ -388,6 +390,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
       score: finalScore,
       status: verdict,
       description: `QA ${verdict === 'keep' ? 'approved' : 'rejected'}${retryCount > 0 ? ` after retry ${retryCount}` : ''}: ${review.verdict.toUpperCase()}`,
+      durationMs: cycleDurationMs,
     };
     await metrics.appendResult(row);
 
