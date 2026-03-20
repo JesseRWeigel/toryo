@@ -119,7 +119,9 @@ Write tests for uncovered modules. Focus on edge cases.
 ```bash
 npx @jweigel/toryo run              # run indefinitely
 npx @jweigel/toryo run -n 10        # run 10 cycles
-toryo status               # check metrics
+npx @jweigel/toryo run --dry-run    # preview without executing
+toryo check                # validate config + tools
+toryo status               # check metrics + agent trust
 toryo dashboard            # open web dashboard
 ```
 

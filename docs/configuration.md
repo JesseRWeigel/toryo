@@ -195,6 +195,19 @@ The `outputDir` (default: `.toryo`) stores all persistent data:
   skills/           # Extracted SKILL.md files
 ```
 
+## CLI Flags Reference
+
+| Command | Flag | Description |
+|---------|------|-------------|
+| `toryo run` | `--config, -c <path>` | Path to config file (default: `./toryo.config.json`) |
+| `toryo run` | `--cycles, -n <N>` | Max cycles to run (default: unlimited) |
+| `toryo run` | `--task, -t <id>` | Run only the task matching this ID (substring match) |
+| `toryo run` | `--dry-run` | Preview config and task rotation without executing |
+| `toryo check` | `--config, -c <path>` | Validate config, check tools installed, list specs |
+| `toryo status` | `--config, -c <path>` | Show metrics, agent trust levels, recent results |
+| `toryo dashboard` | `--config, -c <path>` | Open real-time web dashboard at http://localhost:3100 |
+| `toryo init` | — | Auto-detect tools and generate config + example spec |
+
 ## Example Configurations
 
 ### All-Claude Setup

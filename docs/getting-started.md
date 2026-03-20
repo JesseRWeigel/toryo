@@ -150,6 +150,26 @@ Use `--config` (or `-c`) to specify a different config file:
 npx toryo run --config ./configs/production.json --cycles 10
 ```
 
+## Preflight Check
+
+Before running, validate your setup:
+
+```bash
+npx toryo check
+```
+
+This verifies your config, checks that each agent's CLI tool is installed, lists your task specs, and shows your ratchet/delegation settings. Fix any issues before running.
+
+## Preview with Dry Run
+
+See what would happen without executing:
+
+```bash
+npx toryo run --dry-run
+```
+
+Shows agents, task rotation order, and phase assignments without calling any AI tools.
+
 ## Checking Results
 
 View current metrics and recent results:
