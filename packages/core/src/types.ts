@@ -5,8 +5,8 @@ import { z } from 'zod';
 export type AutonomyLevel = 'supervised' | 'guided' | 'autonomous';
 
 export interface AgentProfile {
-  /** Unique identifier for this agent */
-  id: string;
+  /** Optional identifier (agents are typically keyed by ID in the config record) */
+  id?: string;
   /** Which adapter to use (claude-code, aider, gemini-cli, ollama, codex, custom) */
   adapter: string;
   /** Model name passed to the adapter */
