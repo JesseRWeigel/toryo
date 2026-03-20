@@ -202,4 +202,147 @@ describe('createOrchestrator', () => {
     expect(states.worker).toBeDefined();
     expect(states.reviewer).toBeDefined();
   });
+
+  it('retries via Ralph Loop when score below threshold', async () => {
+    let reviewCount = 0;
+    const retryScorer: AgentAdapter = {
+      name: 'retry-scorer',
+      async send(): Promise<AdapterResponse> {
+        reviewCount++;
+        // First review: fail. Second review (after retry): pass.
+        const score = reviewCount === 1 ? 3 : 8;
+        return {
+          output: `Score: ${score}/10\n${score >= 6 ? 'PASS' : 'FAIL'}\nFeedback: ${score < 6 ? 'Needs more detail' : 'Good work'}`,
+          durationMs: 10,
+          infraFailure: false,
+        };
+      },
+      async isAvailable() { return true; },
+    };
+
+    const config = makeConfig({
+      ratchet: { threshold: 6, maxRetries: 1, gitStrategy: 'none' },
+      agents: {
+        worker: { adapter: 'mock', strengths: ['code', 'plan', 'research'], timeout: 30 },
+        reviewer: { adapter: 'retry-scorer', strengths: ['review', 'scoring', 'quality'], timeout: 30 },
+      },
+    });
+    const events: ToryoEvent[] = [];
+
+    const orchestrator = await createOrchestrator({
+      config,
+      adapters: { mock: createMockAdapter(), 'retry-scorer': retryScorer },
+      cwd: TEST_DIR,
+      onEvent: (e) => events.push(e),
+    });
+
+    const results = await orchestrator.run([TASK], 1, 1);
+    expect(results[0].verdict).toBe('keep');
+    expect(results[0].finalScore).toBe(8);
+    expect(results[0].retryCount).toBe(1);
+
+    // Should have emitted ralph:retry event
+    const retryEvents = events.filter((e) => e.type === 'ralph:retry');
+    expect(retryEvents).toHaveLength(1);
+  });
+
+  it('discards after max retries exhausted', async () => {
+    const alwaysFailScorer: AgentAdapter = {
+      name: 'fail-scorer',
+      async send(): Promise<AdapterResponse> {
+        return { output: 'Score: 2/10\nFAIL\nTerrible output', durationMs: 10, infraFailure: false };
+      },
+      async isAvailable() { return true; },
+    };
+
+    const config = makeConfig({
+      ratchet: { threshold: 6, maxRetries: 1, gitStrategy: 'none' },
+      agents: {
+        worker: { adapter: 'mock', strengths: ['code', 'plan', 'research'], timeout: 30 },
+        reviewer: { adapter: 'fail-scorer', strengths: ['review', 'scoring', 'quality'], timeout: 30 },
+      },
+    });
+
+    const orchestrator = await createOrchestrator({
+      config,
+      adapters: { mock: createMockAdapter(), 'fail-scorer': alwaysFailScorer },
+      cwd: TEST_DIR,
+    });
+
+    const results = await orchestrator.run([TASK], 1, 1);
+    expect(results[0].verdict).toBe('discard');
+    expect(results[0].retryCount).toBe(1);
+  });
+
+  it('saves results to results.tsv', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const config = makeConfig();
+
+    const orchestrator = await createOrchestrator({
+      config,
+      adapters: { mock: createMockAdapter(), 'mock-scorer': createScoringAdapter(7) },
+      cwd: TEST_DIR,
+    });
+
+    await orchestrator.run([TASK], 1, 1);
+
+    const tsv = await readFile(join(OUTPUT_DIR, 'results.tsv'), 'utf-8');
+    const lines = tsv.trim().split('\n');
+    expect(lines[0]).toContain('timestamp\tcycle\ttask');
+    expect(lines.length).toBe(2); // header + 1 result
+    expect(lines[1]).toContain('test-task');
+    expect(lines[1]).toContain('keep');
+  });
+
+  it('writes knowledge entries after cycles', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const config = makeConfig();
+
+    const orchestrator = await createOrchestrator({
+      config,
+      adapters: { mock: createMockAdapter(), 'mock-scorer': createScoringAdapter(7) },
+      cwd: TEST_DIR,
+    });
+
+    await orchestrator.run([TASK], 1, 2);
+
+    const knowledge = JSON.parse(await readFile(join(OUTPUT_DIR, 'knowledge.json'), 'utf-8'));
+    expect(knowledge.entries.length).toBe(2);
+    expect(knowledge.entries[0].key).toContain('cycle-1');
+    expect(knowledge.entries[1].key).toContain('cycle-2');
+  });
+
+  it('tracks success rate across multiple cycles', async () => {
+    let callNum = 0;
+    const mixedScorer: AgentAdapter = {
+      name: 'mixed-scorer',
+      async send(): Promise<AdapterResponse> {
+        callNum++;
+        // Alternate: pass, fail, pass
+        const score = callNum % 2 === 1 ? 8 : 3;
+        return { output: `Score: ${score}/10\n${score >= 6 ? 'PASS' : 'FAIL'}`, durationMs: 10, infraFailure: false };
+      },
+      async isAvailable() { return true; },
+    };
+
+    const config = makeConfig({
+      ratchet: { threshold: 6, maxRetries: 0, gitStrategy: 'none' },
+      agents: {
+        worker: { adapter: 'mock', strengths: ['code', 'plan', 'research'], timeout: 30 },
+        reviewer: { adapter: 'mixed-scorer', strengths: ['review', 'scoring', 'quality'], timeout: 30 },
+      },
+    });
+
+    const orchestrator = await createOrchestrator({
+      config,
+      adapters: { mock: createMockAdapter(), 'mixed-scorer': mixedScorer },
+      cwd: TEST_DIR,
+    });
+
+    await orchestrator.run([TASK], 1, 3);
+    const metrics = orchestrator.getMetrics();
+    expect(metrics.totalTasks).toBe(3);
+    // 2 keeps, 1 discard = 66.7%
+    expect(metrics.successRate).toBeCloseTo(0.667, 1);
+  });
 });
