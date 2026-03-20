@@ -1,5 +1,5 @@
 {
-  "name": "@toryo/adapters",
+  "name": "toryo-adapters",
   "version": "0.1.0",
   "description": "Agent adapters for Toryo — Claude Code, Aider, Gemini CLI, Ollama, and more",
   "type": "module",
@@ -33,6 +33,6 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@toryo/core": "*"
+    "toryo-core": "*"
   }
 }

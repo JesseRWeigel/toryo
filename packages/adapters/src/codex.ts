@@ -1,5 +1,5 @@
 import { CliAdapter } from './base.js';
-import type { AdapterSendOptions } from '@toryo/core';
+import type { AdapterSendOptions } from 'toryo-core';
 
 /**
  * Adapter for Codex CLI (codex).

@@ -6,7 +6,7 @@ export { GeminiCliAdapter } from './gemini-cli.js';
 export { OllamaAdapter } from './ollama.js';
 export { CustomAdapter } from './custom.js';
 
-import type { AgentAdapter } from '@toryo/core';
+import type { AgentAdapter } from 'toryo-core';
 import { ClaudeCodeAdapter } from './claude-code.js';
 import { CodexAdapter } from './codex.js';
 import { AiderAdapter } from './aider.js';

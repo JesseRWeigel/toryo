@@ -1,4 +1,4 @@
-import type { AgentAdapter, AdapterSendOptions, AdapterResponse } from '@toryo/core';
+import type { AgentAdapter, AdapterSendOptions, AdapterResponse } from 'toryo-core';
 
 /**
  * Adapter for Ollama API (direct HTTP, no CLI dependency).

@@ -2,9 +2,9 @@
 
 import { resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
-import { createOrchestrator, loadSpecs } from '@toryo/core';
-import { createAdapter } from '@toryo/adapters';
-import type { ToryoConfig, AgentAdapter, ToryoEvent } from '@toryo/core';
+import { createOrchestrator, loadSpecs } from 'toryo-core';
+import { createAdapter } from 'toryo-adapters';
+import type { ToryoConfig, AgentAdapter, ToryoEvent } from 'toryo-core';
 
 const USAGE = `
 toryo — The intelligent agent orchestrator (棟梁)
@@ -149,7 +149,7 @@ async function runCommand(args: string[]) {
 
 async function statusCommand(args: string[]) {
   const config = await loadConfig(args);
-  const { createMetrics } = await import('@toryo/core');
+  const { createMetrics } = await import('toryo-core');
   const metricsManager = createMetrics(config.outputDir);
   const metrics = await metricsManager.loadMetrics();
   const results = await metricsManager.loadResults();

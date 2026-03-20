@@ -1,5 +1,5 @@
 {
-  "name": "toryo",
+  "name": "@jweigel/toryo",
   "version": "0.1.0",
   "description": "棟梁 The intelligent agent orchestrator — chains AI coding agents with trust-based delegation and quality ratcheting",
   "type": "module",
@@ -27,7 +27,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@toryo/core": "*",
-    "@toryo/adapters": "*"
+    "toryo-core": "*",
+    "toryo-adapters": "*"
   }
 }

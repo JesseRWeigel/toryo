@@ -7,8 +7,8 @@
 Toryo chains multiple AI coding agents (Claude Code, Aider, Gemini CLI, Codex, Ollama) with spec-driven workflows, trust-based delegation, quality ratcheting, and a real-time dashboard.
 
 ```bash
-npx toryo init    # scaffold config + task specs
-npx toryo run     # start orchestration
+npx @jweigel/toryo init    # scaffold config + task specs
+npx @jweigel/toryo run     # start orchestration
 ```
 
 **[Documentation](docs/)** | **[Getting Started](docs/getting-started.md)** | **[Configuration](docs/configuration.md)** | **[Contributing](CONTRIBUTING.md)**
@@ -54,7 +54,7 @@ This is the **ratcheting pattern** from [Karpathy's autoresearch](https://github
 ### 1. Initialize
 
 ```bash
-npx toryo init
+npx @jweigel/toryo init
 ```
 
 Creates:
@@ -115,8 +115,8 @@ Write tests for uncovered modules. Focus on edge cases.
 ### 4. Run
 
 ```bash
-npx toryo run              # run indefinitely
-npx toryo run -n 10        # run 10 cycles
+npx @jweigel/toryo run              # run indefinitely
+npx @jweigel/toryo run -n 10        # run 10 cycles
 npx toryo status           # check metrics
 npx toryo dashboard        # open web dashboard
 ```

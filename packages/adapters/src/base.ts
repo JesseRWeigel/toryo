@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { AgentAdapter, AdapterSendOptions, AdapterResponse } from '@toryo/core';
+import type { AgentAdapter, AdapterSendOptions, AdapterResponse } from 'toryo-core';
 
 const execFileAsync = promisify(execFile);
 
