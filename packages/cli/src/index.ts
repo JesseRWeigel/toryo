@@ -13,6 +13,7 @@ Usage:
   toryo run [--config <path>] [--cycles <n>]    Run orchestration cycles
   toryo status [--config <path>]                Show metrics and agent states
   toryo dashboard [--config <path>]             Open real-time web dashboard
+  toryo check [--config <path>]                 Validate config and check tools
   toryo init                                    Create example config + specs
   toryo --help                                  Show this help
 
@@ -43,6 +44,9 @@ async function main() {
       break;
     case 'dashboard':
       await dashboardCommand(args.slice(1));
+      break;
+    case 'check':
+      await checkCommand(args.slice(1));
       break;
     default:
       console.error(`Unknown command: ${command}`);
@@ -239,6 +243,57 @@ async function statusCommand(args: string[]) {
 
 async function initCommand() {
   const { writeFile, mkdir } = await import('node:fs/promises');
+  const { createAdapter } = await import('toryo-adapters');
+
+  console.log('\n棟梁 Toryo — Initializing...\n');
+
+  // Detect available tools
+  const tools = ['claude-code', 'aider', 'gemini-cli', 'codex', 'ollama'] as const;
+  const available: string[] = [];
+
+  for (const name of tools) {
+    try {
+      const adapter = createAdapter(name);
+      if (await adapter.isAvailable()) {
+        available.push(name);
+        console.log(`  ✓ Found: ${name}`);
+      }
+    } catch { /* skip */ }
+  }
+
+  if (available.length === 0) {
+    console.log('  ⚠ No AI tools detected. Install at least one:');
+    console.log('    - claude (Claude Code): https://claude.ai/code');
+    console.log('    - ollama: https://ollama.ai');
+    console.log('    - aider: https://aider.chat');
+    console.log('\n  Generating config with claude-code as default (install it before running).\n');
+    available.push('claude-code');
+  }
+
+  // Pick the best available tool for each role
+  const primary = available[0];
+  const secondary = available.length > 1 ? available[1] : primary;
+
+  const agents: Record<string, unknown> = {
+    planner: {
+      adapter: primary,
+      ...(primary === 'ollama' ? { model: 'qwen3.5:9b' } : {}),
+      strengths: ['planning', 'analysis', 'strategy'],
+      timeout: primary === 'ollama' ? 120 : 900,
+    },
+    coder: {
+      adapter: secondary,
+      ...(secondary === 'ollama' ? { model: 'qwen3.5:27b' } : {}),
+      strengths: ['code', 'implementation', 'testing'],
+      timeout: secondary === 'ollama' ? 120 : 900,
+    },
+    reviewer: {
+      adapter: primary,
+      ...(primary === 'ollama' ? { model: 'qwen3.5:9b' } : {}),
+      strengths: ['review', 'scoring', 'quality'],
+      timeout: primary === 'ollama' ? 120 : 600,
+    },
+  };
 
   // Create specs directory with example
   await mkdir('specs', { recursive: true });
@@ -270,26 +325,7 @@ Focus on:
 
   await writeFile('toryo.config.json', JSON.stringify({
     name: 'my-project',
-    agents: {
-      researcher: {
-        adapter: 'claude-code',
-        model: 'claude-sonnet-4-6',
-        strengths: ['research', 'analysis', 'summarization'],
-        timeout: 900,
-      },
-      coder: {
-        adapter: 'claude-code',
-        model: 'claude-sonnet-4-6',
-        strengths: ['code', 'architecture', 'testing'],
-        timeout: 900,
-      },
-      reviewer: {
-        adapter: 'claude-code',
-        model: 'claude-sonnet-4-6',
-        strengths: ['review', 'scoring', 'quality'],
-        timeout: 600,
-      },
-    },
+    agents,
     tasks: './specs/',
     ratchet: {
       threshold: 6.0,
@@ -313,10 +349,12 @@ Focus on:
     },
   }, null, 2) + '\n');
 
-  console.log('棟梁 Toryo initialized!');
-  console.log('  Created: toryo.config.json');
+  console.log('\n  Created: toryo.config.json');
   console.log('  Created: specs/01-write-tests.md');
-  console.log('\nEdit toryo.config.json to configure your agents, then run:');
+  console.log(`  Agents configured for: ${available.join(', ')}`);
+  console.log('\nNext steps:');
+  console.log('  toryo check    — validate your setup');
+  console.log('  toryo run      — start orchestration');
   console.log('  toryo run');
 }
 
@@ -362,6 +400,86 @@ async function dashboardCommand(args: string[]) {
   process.on('SIGTERM', () => child.kill('SIGTERM'));
 
   await new Promise<void>((resolve) => child.on('close', () => resolve()));
+}
+
+async function checkCommand(args: string[]) {
+  const config = await loadConfig(args);
+  const { validateConfig } = await import('toryo-core');
+  const { createAdapter } = await import('toryo-adapters');
+
+  console.log('\n棟梁 Toryo — Preflight Check\n');
+
+  // Validate config
+  const validation = validateConfig(config);
+  if (!validation.success) {
+    console.log('  ✗ Config: INVALID');
+    for (const err of validation.errors ?? []) {
+      console.log(`    - ${err}`);
+    }
+    process.exit(1);
+  }
+  console.log('  ✓ Config: valid');
+
+  // Check each agent's adapter availability
+  let allAvailable = true;
+  const adapters = new Map<string, boolean>();
+
+  for (const [id, agentConfig] of Object.entries(config.agents)) {
+    const adapterName = agentConfig.adapter;
+    if (!adapters.has(adapterName)) {
+      try {
+        const adapter = createAdapter(adapterName);
+        const available = await adapter.isAvailable();
+        adapters.set(adapterName, available);
+      } catch {
+        adapters.set(adapterName, false);
+      }
+    }
+
+    const available = adapters.get(adapterName)!;
+    const icon = available ? '✓' : '✗';
+    const model = agentConfig.model ? ` (${agentConfig.model})` : '';
+    console.log(`  ${icon} Agent "${id}": ${adapterName}${model}${available ? '' : ' — NOT FOUND'}`);
+    if (!available) allAvailable = false;
+  }
+
+  // Check tasks
+  const { resolve } = await import('node:path');
+  const { loadSpecs } = await import('toryo-core');
+
+  if (typeof config.tasks === 'string') {
+    try {
+      const specs = await loadSpecs(resolve(config.tasks));
+      console.log(`  ✓ Specs: ${specs.length} task(s) in ${config.tasks}`);
+      for (const spec of specs) {
+        console.log(`    - ${spec.id}: ${spec.name}`);
+      }
+    } catch {
+      console.log(`  ✗ Specs: directory "${config.tasks}" not found or empty`);
+      allAvailable = false;
+    }
+  } else {
+    console.log(`  ✓ Specs: ${config.tasks.length} inline task(s)`);
+  }
+
+  // Check output dir
+  const { existsSync } = await import('node:fs');
+  const outputExists = existsSync(config.outputDir);
+  console.log(`  ${outputExists ? '✓' : '○'} Output: ${config.outputDir}${outputExists ? '' : ' (will be created)'}`);
+
+  // Summary
+  console.log(`\n  Ratchet: threshold ${config.ratchet.threshold}/10, ${config.ratchet.maxRetries} retries, ${config.ratchet.gitStrategy}`);
+  console.log(`  Delegation: trust ${config.delegation.initialTrust}, window ${config.delegation.scoreWindow}`);
+  if (config.notifications?.provider && config.notifications.provider !== 'none') {
+    console.log(`  Notifications: ${config.notifications.provider} → ${config.notifications.target}`);
+  }
+
+  if (allAvailable) {
+    console.log('\n  ✓ All checks passed — ready to run!\n');
+  } else {
+    console.log('\n  ⚠ Some checks failed — fix issues above before running.\n');
+    process.exit(1);
+  }
 }
 
 main().catch((error) => {
