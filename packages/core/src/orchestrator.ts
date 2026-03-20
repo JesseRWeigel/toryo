@@ -33,6 +33,9 @@ const INFRA_FAILURE_PATTERNS = [
   /ETIMEDOUT/i,
   /ECONNREFUSED/i,
   /context.*exceeded/i,
+  /\[infra\]/i,
+  /Timeout exceeded/i,
+  /E2BIG/i,
 ];
 
 export async function createOrchestrator(options: OrchestratorOptions) {
@@ -199,7 +202,11 @@ export async function createOrchestrator(options: OrchestratorOptions) {
         : '';
       const knowledgeContext = await knowledge.toContext(2000);
       const knowledgeSection = knowledgeContext ? `\n\n${knowledgeContext}` : '';
-      const projectSection = projectContext ? `\n\n${projectContext}` : '';
+      // Only inject project context into execute-like phases (not plan/research/review)
+      // to avoid bloating prompts and causing timeouts
+      const contextPhases = ['execute', 'implement', 'code', 'build'];
+      const shouldInjectContext = contextPhases.some((cp) => phase.toLowerCase().includes(cp));
+      const projectSection = shouldInjectContext && projectContext ? `\n\n${projectContext}` : '';
       const prompt = `${task.description}\n\n## Acceptance Criteria\n${task.acceptanceCriteria.map((c) => `- ${c}`).join('\n')}${contextFromPrevious}${knowledgeSection}${projectSection}`;
 
       // --- Parallel execution: run multiple agents concurrently ---

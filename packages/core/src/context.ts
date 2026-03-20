@@ -31,10 +31,13 @@ interface FileEntry {
 
 function matchesGlob(filePath: string, pattern: string): boolean {
   // Simple glob matching: supports *, **, and file extensions
+  // **/ should match zero or more directories (including root level)
   const regexStr = pattern
     .replace(/\./g, '\\.')
+    .replace(/\*\*\//g, '{{GLOBSTAR_SLASH}}')
     .replace(/\*\*/g, '{{GLOBSTAR}}')
     .replace(/\*/g, '[^/]*')
+    .replace(/\{\{GLOBSTAR_SLASH\}\}/g, '(.*/)?')
     .replace(/\{\{GLOBSTAR\}\}/g, '.*');
   return new RegExp(`^${regexStr}$`).test(filePath);
 }
