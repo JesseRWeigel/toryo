@@ -330,7 +330,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
         const lastWorkPhase = workPhases[workPhases.length - 1];
         const executeAgent = phaseResults.find((p) => p.phase === lastWorkPhase)?.agentId ??
           Object.keys(config.agents)[0];
-        const retryPrompt = ratchet.buildRetryPrompt(task.description, review.feedback);
+        const retryPrompt = ratchet.buildRetryPrompt(task.description, review.feedback, retryCount);
         const retryResult = await runPhase(lastWorkPhase, executeAgent, retryPrompt, cycleNum);
 
         // Commit retry

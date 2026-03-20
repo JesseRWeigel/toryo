@@ -142,17 +142,25 @@ export function createRatchet(config: Partial<RatchetConfig> = {}, cwd: string) 
     return retryCount < cfg.maxRetries;
   }
 
-  function buildRetryPrompt(originalPrompt: string, feedback: string): string {
+  function buildRetryPrompt(originalPrompt: string, feedback: string, attempt = 1): string {
     return [
-      'Your previous attempt was reviewed and needs revision.',
+      `## Revision Required (Attempt ${attempt + 1})`,
       '',
-      '## QA Feedback',
+      'Your previous attempt scored below the quality threshold and was rejected.',
+      'Read the QA feedback carefully and address EVERY issue mentioned.',
+      '',
+      '### What went wrong',
       feedback,
       '',
-      '## Original Task',
-      originalPrompt,
+      '### Key instructions for this retry',
+      '- Fix the specific issues identified in the feedback above',
+      '- Do NOT repeat the same approach if it was criticized',
+      '- Be more concrete and specific in your output',
+      '- If the feedback says output was too vague, include actual code/examples',
+      '- If the feedback says criteria were missed, address each criterion explicitly',
       '',
-      'Address the feedback above and produce an improved version.',
+      '### Original Task',
+      originalPrompt,
     ].join('\n');
   }
 

@@ -194,10 +194,25 @@ async function statusCommand(args: string[]) {
   console.log(`  Success rate: ${(metrics.successRate * 100).toFixed(1)}%\n`);
 
   for (const [id, agent] of Object.entries(metrics.agents)) {
-    console.log(`  ${id}:`);
-    console.log(`    Tasks: ${agent.tasksCompleted}`);
-    console.log(`    Avg score: ${agent.avgScore.toFixed(1)}/10`);
-    console.log(`    Success rate: ${(agent.successRate * 100).toFixed(1)}%`);
+    // Determine autonomy level from trust
+    const trust = Math.min(agent.avgScore / 10, 1);
+    const level = trust >= 0.8 && agent.tasksCompleted >= 10
+      ? 'AUTONOMOUS' : trust >= 0.6 && agent.tasksCompleted >= 5
+      ? 'GUIDED' : 'SUPERVISED';
+    const levelIcon = level === 'AUTONOMOUS' ? '●' : level === 'GUIDED' ? '◐' : '○';
+
+    // Score trend (last 5 vs previous 5)
+    const recent5 = agent.scores.slice(-5);
+    const prev5 = agent.scores.slice(-10, -5);
+    let trend = '';
+    if (recent5.length >= 3 && prev5.length >= 3) {
+      const recentAvg = recent5.reduce((a, b) => a + b, 0) / recent5.length;
+      const prevAvg = prev5.reduce((a, b) => a + b, 0) / prev5.length;
+      trend = recentAvg > prevAvg + 0.3 ? ' ↑' : recentAvg < prevAvg - 0.3 ? ' ↓' : ' →';
+    }
+
+    console.log(`  ${id}: ${levelIcon} ${level}`);
+    console.log(`    Tasks: ${agent.tasksCompleted} | Avg: ${agent.avgScore.toFixed(1)}/10${trend} | Success: ${(agent.successRate * 100).toFixed(0)}%`);
   }
 
   // Last 5 results
@@ -207,6 +222,17 @@ async function statusCommand(args: string[]) {
     for (const row of recent) {
       const icon = row.status === 'keep' ? '✓' : row.status === 'discard' ? '✗' : '⚠';
       console.log(`    ${icon} Cycle ${row.cycle}: ${row.task} — ${row.score}/10 (${row.status})`);
+    }
+  }
+
+  // Score distribution
+  if (results.length > 0) {
+    const allScores = results.map(r => r.score).filter(s => s > 0);
+    if (allScores.length > 0) {
+      const min = Math.min(...allScores);
+      const max = Math.max(...allScores);
+      const avg = allScores.reduce((a, b) => a + b, 0) / allScores.length;
+      console.log(`\n  Scores: min ${min.toFixed(1)} / avg ${avg.toFixed(1)} / max ${max.toFixed(1)}`);
     }
   }
 }

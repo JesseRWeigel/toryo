@@ -129,24 +129,30 @@ describe('createRatchet', () => {
     it('includes QA feedback and original prompt', () => {
       const r = createRatchet({}, cwd);
       const result = r.buildRetryPrompt('Write a function', 'Missing error handling');
-      expect(result).toContain('QA Feedback');
+      expect(result).toContain('What went wrong');
       expect(result).toContain('Missing error handling');
       expect(result).toContain('Original Task');
       expect(result).toContain('Write a function');
     });
 
-    it('includes improvement instruction', () => {
+    it('includes improvement instructions', () => {
       const r = createRatchet({}, cwd);
       const result = r.buildRetryPrompt('task', 'feedback');
-      expect(result).toContain('Address the feedback');
-      expect(result).toContain('improved version');
+      expect(result).toContain('Key instructions');
+      expect(result).toContain('Fix the specific issues');
     });
 
     it('handles empty strings', () => {
       const r = createRatchet({}, cwd);
       const result = r.buildRetryPrompt('', '');
-      expect(result).toContain('QA Feedback');
+      expect(result).toContain('What went wrong');
       expect(result).toContain('Original Task');
+    });
+
+    it('includes attempt number', () => {
+      const r = createRatchet({}, cwd);
+      const result = r.buildRetryPrompt('task', 'feedback', 2);
+      expect(result).toContain('Attempt 3');
     });
 
     it('preserves multiline feedback', () => {
