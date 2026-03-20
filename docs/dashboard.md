@@ -2,6 +2,8 @@
 
 Toryo includes a real-time web dashboard for monitoring your orchestration cycles, agent performance, and live events.
 
+![Toryo Dashboard](images/dashboard.png)
+
 ## Starting the Dashboard
 
 ```bash

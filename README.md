@@ -13,6 +13,8 @@ npx @jweigel/toryo run     # start orchestration
 
 **[Documentation](docs/)** | **[Getting Started](docs/getting-started.md)** | **[Configuration](docs/configuration.md)** | **[Contributing](CONTRIBUTING.md)**
 
+![Toryo Run — Full cycle with Ralph Loop retry](docs/images/toryo-run.png)
+
 ---
 
 ## Why Toryo?
@@ -117,8 +119,8 @@ Write tests for uncovered modules. Focus on edge cases.
 ```bash
 npx @jweigel/toryo run              # run indefinitely
 npx @jweigel/toryo run -n 10        # run 10 cycles
-npx toryo status           # check metrics
-npx toryo dashboard        # open web dashboard
+toryo status               # check metrics
+toryo dashboard            # open web dashboard
 ```
 
 ## Adapters
@@ -205,6 +207,8 @@ Real-time web dashboard showing agent status, results, and live events:
 npx toryo dashboard
 # Opens http://localhost:3456
 ```
+
+![Toryo Dashboard](docs/images/dashboard.png)
 
 Features:
 - Agent status cards with trust scores and autonomy levels

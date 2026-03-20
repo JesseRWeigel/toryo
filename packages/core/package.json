@@ -1,6 +1,6 @@
 {
   "name": "toryo-core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Core engine for the Toryo intelligent agent orchestrator",
   "type": "module",
   "main": "dist/index.js",
@@ -18,8 +18,19 @@
   "engines": {
     "node": ">=20"
   },
-  "keywords": ["ai", "agent", "orchestrator", "llm", "automation", "delegation", "ratchet"],
-  "files": ["dist", "README.md"],
+  "keywords": [
+    "ai",
+    "agent",
+    "orchestrator",
+    "llm",
+    "automation",
+    "delegation",
+    "ratchet"
+  ],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "exports": {
     ".": {
       "import": "./dist/index.js",

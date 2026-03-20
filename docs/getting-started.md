@@ -142,25 +142,7 @@ npx toryo run -n 5
 
 You will see live output showing each phase as it runs:
 
-```
-棟梁 Toryo -- Intelligent Agent Orchestrator
-  Agents: researcher, coder, reviewer
-  Tasks: 01-write-tests
-  Ratchet threshold: 6.0/10
-  Max cycles: 5
-
-[10:15:00] -> Cycle 1: 01-write-tests
-[10:15:00]   -> plan (researcher)
-[10:15:12]   v plan done (12.3s, 0 extractions)
-[10:15:12]   -> research (researcher)
-[10:15:28]   v research done (15.8s, 0 extractions)
-[10:15:28]   -> execute (coder)
-[10:17:45]   v execute done (137.2s, 2 extractions)
-[10:17:45]   -> review (reviewer)
-[10:18:30]   * Score: 7.5/10 -- PASS
-[10:18:30]   v KEEP (7.5/10)
-[10:18:30] * Cycle 1 complete: keep (7.5/10)
-```
+![toryo run output](images/toryo-run.png)
 
 Use `--config` (or `-c`) to specify a different config file:
 
@@ -178,24 +160,7 @@ npx toryo status
 
 Output:
 
-```
-棟梁 Toryo -- Status
-  Cycles: 5
-  Total tasks: 5
-  Success rate: 80.0%
-
-  coder:
-    Tasks: 5
-    Avg score: 7.2/10
-    Success rate: 80.0%
-
-  Recent results:
-    v Cycle 5: write-tests -- 8.2/10 (keep)
-    v Cycle 4: code-review -- 7.1/10 (keep)
-    x Cycle 3: refactor -- 4.5/10 (discard)
-    v Cycle 2: write-tests -- 7.8/10 (keep)
-    v Cycle 1: write-tests -- 7.5/10 (keep)
-```
+![toryo status output](images/toryo-status.png)
 
 All results are also logged to `.toryo/results.tsv` in tab-separated format, and metrics are persisted in `.toryo/metrics.json`.
 
@@ -207,7 +172,11 @@ For a real-time web view of your orchestration:
 npx toryo dashboard
 ```
 
-This opens a dashboard at `http://localhost:3100` with agent status cards, a results table, and a live event feed. See [dashboard.md](./dashboard.md) for details.
+This opens a dashboard at `http://localhost:3100`:
+
+![Toryo Dashboard](images/dashboard.png)
+
+See [dashboard.md](./dashboard.md) for details.
 
 ## Next Steps
 

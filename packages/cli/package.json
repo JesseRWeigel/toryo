@@ -1,6 +1,6 @@
 {
   "name": "@jweigel/toryo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "棟梁 The intelligent agent orchestrator — chains AI coding agents with trust-based delegation and quality ratcheting",
   "type": "module",
   "license": "MIT",
@@ -16,8 +16,21 @@
   "engines": {
     "node": ">=20"
   },
-  "keywords": ["ai", "agent", "orchestrator", "cli", "automation", "claude", "aider", "gemini", "ollama"],
-  "files": ["dist", "README.md"],
+  "keywords": [
+    "ai",
+    "agent",
+    "orchestrator",
+    "cli",
+    "automation",
+    "claude",
+    "aider",
+    "gemini",
+    "ollama"
+  ],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "bin": {
     "toryo": "dist/index.js"
   },
