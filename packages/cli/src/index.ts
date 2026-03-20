@@ -14,6 +14,7 @@ Usage:
   toryo status [--config <path>]                Show metrics and agent states
   toryo dashboard [--config <path>]             Open real-time web dashboard
   toryo history [--config <path>]                Show score trend chart
+  toryo export [--config <path>]                 Export results as markdown report
   toryo check [--config <path>]                 Validate config and check tools
   toryo init                                    Create example config + specs
   toryo --help                                  Show this help
@@ -51,6 +52,9 @@ async function main() {
       break;
     case 'check':
       await checkCommand(args.slice(1));
+      break;
+    case 'export':
+      await exportCommand(args.slice(1));
       break;
     case 'history':
       await historyCommand(args.slice(1));
@@ -515,6 +519,63 @@ async function historyCommand(args: string[]) {
     const recentAvg = recent5.reduce((a, b) => a + b, 0) / recent5.length;
     console.log(`  avg: ${avg.toFixed(1)}/10  recent: ${recentAvg.toFixed(1)}/10  cycles: ${data.length}\n`);
   }
+}
+
+async function exportCommand(args: string[]) {
+  const config = await loadConfig(args);
+  const { createMetrics } = await import('toryo-core');
+  const { writeFile } = await import('node:fs/promises');
+  const metricsManager = createMetrics(config.outputDir);
+  const metrics = await metricsManager.loadMetrics();
+  const results = await metricsManager.loadResults();
+
+  if (results.length === 0) {
+    console.log('\n  No results to export. Run some cycles first.\n');
+    return;
+  }
+
+  const keeps = results.filter((r) => r.status === 'keep');
+  const discards = results.filter((r) => r.status === 'discard');
+  const scores = results.map((r) => r.score).filter((s) => s > 0);
+  const avg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+
+  const lines = [
+    `# Toryo Report — ${config.name ?? 'Project'}`,
+    '',
+    `Generated: ${new Date().toISOString().split('T')[0]}`,
+    '',
+    '## Summary',
+    '',
+    `| Metric | Value |`,
+    `|--------|-------|`,
+    `| Total cycles | ${results.length} |`,
+    `| Kept (passed QA) | ${keeps.length} (${(keeps.length / results.length * 100).toFixed(0)}%) |`,
+    `| Discarded | ${discards.length} |`,
+    `| Average score | ${avg.toFixed(1)}/10 |`,
+    `| Score range | ${Math.min(...scores).toFixed(1)} — ${Math.max(...scores).toFixed(1)} |`,
+    '',
+    '## Agent Performance',
+    '',
+    '| Agent | Tasks | Avg Score | Success Rate |',
+    '|-------|-------|-----------|-------------|',
+    ...Object.entries(metrics.agents).map(([id, a]) =>
+      `| ${id} | ${a.tasksCompleted} | ${a.avgScore.toFixed(1)}/10 | ${(a.successRate * 100).toFixed(0)}% |`,
+    ),
+    '',
+    '## Results',
+    '',
+    '| Cycle | Task | Agent | Score | Status |',
+    '|-------|------|-------|-------|--------|',
+    ...results.map((r) =>
+      `| ${r.cycle} | ${r.task} | ${r.agent} | ${r.score.toFixed(1)} | ${r.status} |`,
+    ),
+    '',
+  ];
+
+  const report = lines.join('\n');
+  const outPath = 'toryo-report.md';
+  await writeFile(outPath, report);
+  console.log(`\n  Exported ${results.length} results to ${outPath}\n`);
 }
 
 async function checkCommand(args: string[]) {
