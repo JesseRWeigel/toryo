@@ -13,6 +13,7 @@ Usage:
   toryo run [--config <path>] [--cycles <n>]    Run orchestration cycles
   toryo status [--config <path>]                Show metrics and agent states
   toryo dashboard [--config <path>]             Open real-time web dashboard
+  toryo history [--config <path>]                Show score trend chart
   toryo check [--config <path>]                 Validate config and check tools
   toryo init                                    Create example config + specs
   toryo --help                                  Show this help
@@ -48,6 +49,9 @@ async function main() {
       break;
     case 'check':
       await checkCommand(args.slice(1));
+      break;
+    case 'history':
+      await historyCommand(args.slice(1));
       break;
     default:
       console.error(`Unknown command: ${command}`);
@@ -433,6 +437,62 @@ async function dashboardCommand(args: string[]) {
   process.on('SIGTERM', () => child.kill('SIGTERM'));
 
   await new Promise<void>((resolve) => child.on('close', () => resolve()));
+}
+
+async function historyCommand(args: string[]) {
+  const config = await loadConfig(args);
+  const { createMetrics } = await import('toryo-core');
+  const metricsManager = createMetrics(config.outputDir);
+  const results = await metricsManager.loadResults();
+
+  if (results.length === 0) {
+    console.log('\n  No results yet. Run some cycles first.\n');
+    return;
+  }
+
+  console.log('\n棟梁 Toryo — Score History\n');
+
+  // ASCII chart: 10 rows (scores 1-10), columns = cycles
+  const chartHeight = 10;
+  const maxCols = Math.min(results.length, 60); // cap at 60 columns
+  const data = results.slice(-maxCols);
+
+  for (let row = chartHeight; row >= 1; row--) {
+    const label = row.toString().padStart(2);
+    let line = `  ${c.dim(label)} │`;
+    for (const r of data) {
+      if (Math.round(r.score) >= row) {
+        if (r.status === 'keep') line += c.green('█');
+        else if (r.status === 'discard') line += c.red('█');
+        else line += c.yellow('█');
+      } else {
+        line += ' ';
+      }
+    }
+    // Threshold marker
+    if (row === Math.round(config.ratchet.threshold)) {
+      line += `  ${c.dim('← threshold')}`;
+    }
+    console.log(line);
+  }
+
+  // X axis
+  console.log(`  ${c.dim('   └' + '─'.repeat(data.length))}`);
+
+  // Legend
+  const keeps = data.filter((r) => r.status === 'keep').length;
+  const discards = data.filter((r) => r.status === 'discard').length;
+  const crashes = data.filter((r) => r.status === 'crash' || r.status === 'skip').length;
+  console.log(`\n  ${c.green('█')} keep: ${keeps}  ${c.red('█')} discard: ${discards}${crashes ? `  ${c.yellow('█')} crash/skip: ${crashes}` : ''}`);
+
+  // Stats
+  const scores = data.map((r) => r.score).filter((s) => s > 0);
+  if (scores.length > 0) {
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const recent5 = scores.slice(-5);
+    const recentAvg = recent5.reduce((a, b) => a + b, 0) / recent5.length;
+    console.log(`  avg: ${avg.toFixed(1)}/10  recent: ${recentAvg.toFixed(1)}/10  cycles: ${data.length}\n`);
+  }
 }
 
 async function checkCommand(args: string[]) {
