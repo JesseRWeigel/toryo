@@ -14,6 +14,9 @@ export { shouldSelfImprove, buildSelfImprovePrompt } from './self-improve.js';
 export type { SelfImproveResult } from './self-improve.js';
 export { createKnowledgeStore } from './knowledge.js';
 export type { KnowledgeEntry } from './knowledge.js';
+export { gatherProjectContext } from './context.js';
+export { validateConfig } from './config.js';
+export type { ConfigValidationResult } from './config.js';
 
 // Types
 export type {
@@ -41,6 +44,7 @@ export type {
   AdapterSendOptions,
   AdapterResponse,
   ToryoEvent,
+  ProjectContext,
 } from './types.js';
 export { BUILT_IN_PHASES } from './types.js';
 export type { BuiltInPhase } from './types.js';

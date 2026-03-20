@@ -18,6 +18,7 @@ import { processOutput, saveToFile } from './extraction.js';
 import { truncateForPhase } from './truncation.js';
 import { createNotifier, shouldNotify, formatNotification } from './notifications.js';
 import { createKnowledgeStore } from './knowledge.js';
+import { gatherProjectContext } from './context.js';
 
 interface OrchestratorOptions {
   config: ToryoConfig;
@@ -69,6 +70,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
 
   const notifier = createNotifier(config.notifications);
   const knowledge = createKnowledgeStore(config.outputDir);
+  let projectContext = '';
 
   function emit(event: ToryoEvent) {
     onEvent?.(event);
@@ -114,21 +116,26 @@ export async function createOrchestrator(options: OrchestratorOptions) {
   }
 
   function parseScore(output: string): number {
-    // Look for X/10 pattern
-    const match = output.match(/(\d+(?:\.\d+)?)\s*\/\s*10/);
-    if (match) return parseFloat(match[1]);
+    const patterns = [
+      /(\d+(?:\.\d+)?)\s*\/\s*10/,           // X/10
+      /(\d+(?:\.\d+)?)\s*out of\s*10/i,       // X out of 10
+      /Score:\s*\*?\*?(\d+(?:\.\d+)?)\*?\*?/i, // Score: **X** (markdown bold)
+      /Rating:\s*(\d+(?:\.\d+)?)/i,            // Rating: X
+      /score:\s*(\d+(?:\.\d+)?)/i,             // score: X (original fallback)
+    ];
 
-    // Look for "score: X" pattern
-    const scoreMatch = output.match(/score:\s*(\d+(?:\.\d+)?)/i);
-    if (scoreMatch) return parseFloat(scoreMatch[1]);
+    for (const pattern of patterns) {
+      const match = output.match(pattern);
+      if (match) return parseFloat(match[1]);
+    }
 
     return 0;
   }
 
-  function parseVerdict(output: string): ReviewResult['verdict'] {
-    const lower = output.toLowerCase();
-    if (lower.includes('pass')) return 'pass';
-    if (lower.includes('needs_revision') || lower.includes('needs revision')) return 'needs_revision';
+  function parseVerdict(output: string, score: number, threshold: number): ReviewResult['verdict'] {
+    if (score >= threshold) return 'pass';
+    // Check if LLM explicitly said needs_revision (on its own line)
+    if (/^(NEEDS_REVISION|needs revision)/m.test(output)) return 'needs_revision';
     return 'fail';
   }
 
@@ -188,7 +195,8 @@ export async function createOrchestrator(options: OrchestratorOptions) {
         : '';
       const knowledgeContext = await knowledge.toContext(2000);
       const knowledgeSection = knowledgeContext ? `\n\n${knowledgeContext}` : '';
-      const prompt = `${task.description}\n\n## Acceptance Criteria\n${task.acceptanceCriteria.map((c) => `- ${c}`).join('\n')}${contextFromPrevious}${knowledgeSection}`;
+      const projectSection = projectContext ? `\n\n${projectContext}` : '';
+      const prompt = `${task.description}\n\n## Acceptance Criteria\n${task.acceptanceCriteria.map((c) => `- ${c}`).join('\n')}${contextFromPrevious}${knowledgeSection}${projectSection}`;
 
       // --- Parallel execution: run multiple agents concurrently ---
       if (assignment?.parallel && assignment.parallel.agents.length > 0) {
@@ -232,13 +240,19 @@ export async function createOrchestrator(options: OrchestratorOptions) {
           agentId = assignment.agent;
         } else {
           // Phase-aware agent selection: create a synthetic task that emphasizes this phase
-          const phaseHints: Record<string, string> = {
-            plan: 'plan and design the approach',
-            research: 'research and analyze information',
-            execute: 'implement and write code',
-            review: 'review and score output quality',
+          // Use phase-only description so profiling matches the right agent
+          // without being diluted by original task keywords
+          const phaseDescriptions: Record<string, string> = {
+            plan: 'plan design architect strategy approach',
+            research: 'research analyze investigate search find survey',
+            execute: 'implement code build write create function class test',
+            review: 'review audit check verify validate assess score quality',
           };
-          const phaseTask = { ...task, description: `${phaseHints[phase] ?? phase}: ${task.description}` };
+          const phaseTask: TaskSpec = {
+            ...task,
+            description: phaseDescriptions[phase] ?? phase,
+            acceptanceCriteria: [],
+          };
           agentId = delegation.selectAgent(phaseTask, config.agents, agentStates);
         }
 
@@ -258,7 +272,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     const reviewerAgentId =
       reviewAssignment?.agent === 'auto' || !reviewAssignment
         ? delegation.selectAgent(
-            { ...task, description: 'review and score output quality' },
+            { ...task, description: 'review audit check verify validate assess score quality', acceptanceCriteria: [] },
             config.agents,
             agentStates,
           )
@@ -272,9 +286,10 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     const reviewPrompt = buildReviewPrompt(task, executeOutput);
     const reviewResult = await runPhase(reviewPhase, reviewerAgentId, reviewPrompt, cycleNum);
 
+    const reviewScore = parseScore(reviewResult.output);
     const review: ReviewResult = {
-      score: parseScore(reviewResult.output),
-      verdict: parseVerdict(reviewResult.output),
+      score: reviewScore,
+      verdict: parseVerdict(reviewResult.output, reviewScore, config.ratchet.threshold),
       feedback: reviewResult.output,
     };
     phaseResults.push(reviewResult);
@@ -317,9 +332,10 @@ export async function createOrchestrator(options: OrchestratorOptions) {
 
         // Re-review
         const retryReviewResult = await runPhase(reviewPhase, reviewerAgentId, buildReviewPrompt(task, retryResult.output), cycleNum);
+        const retryScore = parseScore(retryReviewResult.output);
         const retryReview: ReviewResult = {
-          score: parseScore(retryReviewResult.output),
-          verdict: parseVerdict(retryReviewResult.output),
+          score: retryScore,
+          verdict: parseVerdict(retryReviewResult.output, retryScore, config.ratchet.threshold),
           feedback: retryReviewResult.output,
         };
 
@@ -379,14 +395,16 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     emit({ type: 'cycle:complete', cycle: cycleNum, result: cycleResult });
 
     // Save cycle result to knowledge store for cross-agent context sharing
-    const lastPhaseOutput = phaseResults.length > 0
-      ? phaseResults[phaseResults.length - 1].output
+    // Find the last work phase output (not the review phase)
+    const workPhaseResults = phaseResults.filter(p => p.phase !== reviewPhase);
+    const lastWorkOutput = workPhaseResults.length > 0
+      ? workPhaseResults[workPhaseResults.length - 1].output
       : '';
     await knowledge.set(
       `cycle-${cycleNum}-${task.id}`,
-      truncateForPhase(lastPhaseOutput, 1000),
+      truncateForPhase(lastWorkOutput, 1000),
       executorId,
-      [task.id, phaseResults[phaseResults.length - 1]?.phase ?? 'unknown', verdict],
+      [task.id, workPhaseResults[workPhaseResults.length - 1]?.phase ?? 'execute', verdict],
     );
 
     return cycleResult;
@@ -396,43 +414,80 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     const results: CycleResult[] = [];
     let cycleNum = startCycle;
 
-    while (true) {
-      if (maxCycles && cycleNum - startCycle >= maxCycles) break;
+    let shuttingDown = false;
+    const shutdown = () => { shuttingDown = true; };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
 
-      const taskIndex = (cycleNum - 1) % tasks.length;
-      const task = tasks[taskIndex];
+    // Gather project context once at the start
+    if (config.context) {
+      projectContext = await gatherProjectContext(config.context, cwd);
+    }
 
-      try {
-        const result = await runCycle(cycleNum, task);
-        results.push(result);
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
+    try {
+      while (!shuttingDown) {
+        if (maxCycles && cycleNum - startCycle >= maxCycles) break;
 
-        if (isInfraFailure('', errorMsg)) {
-          const row: ResultRow = {
-            timestamp: new Date().toISOString(),
-            cycle: cycleNum,
-            task: task.id,
-            agent: 'system',
-            score: 0,
-            status: 'crash',
-            description: `Infrastructure failure: ${errorMsg.slice(0, 200)}`,
-          };
-          await metrics.appendResult(row);
-        } else {
-          throw error;
+        const taskIndex = (cycleNum - 1) % tasks.length;
+        const task = tasks[taskIndex];
+
+        try {
+          const result = await runCycle(cycleNum, task);
+          results.push(result);
+        } catch (error) {
+          if (shuttingDown) {
+            // Interrupted mid-cycle — log as skip
+            const row: ResultRow = {
+              timestamp: new Date().toISOString(),
+              cycle: cycleNum,
+              task: task.id,
+              agent: 'system',
+              score: 0,
+              status: 'skip',
+              description: 'Interrupted by shutdown signal',
+            };
+            await metrics.appendResult(row);
+            break;
+          }
+
+          const errorMsg = error instanceof Error ? error.message : String(error);
+
+          if (isInfraFailure('', errorMsg)) {
+            const row: ResultRow = {
+              timestamp: new Date().toISOString(),
+              cycle: cycleNum,
+              task: task.id,
+              agent: 'system',
+              score: 0,
+              status: 'crash',
+              description: `Infrastructure failure: ${errorMsg.slice(0, 200)}`,
+            };
+            await metrics.appendResult(row);
+          } else {
+            throw error;
+          }
         }
-      }
 
-      cycleNum++;
+        cycleNum++;
+      }
+    } finally {
+      process.off('SIGINT', shutdown);
+      process.off('SIGTERM', shutdown);
+      await metrics.saveMetrics(globalMetrics);
     }
 
     return results;
   }
 
+  function stop() {
+    // Programmatic graceful shutdown — equivalent to receiving SIGINT/SIGTERM
+    process.emit('SIGINT');
+  }
+
   return {
     run,
     runCycle,
+    stop,
     getMetrics: () => globalMetrics,
     getAgentStates: () => ({ ...agentStates }),
   };

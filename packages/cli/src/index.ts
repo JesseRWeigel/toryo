@@ -18,6 +18,7 @@ Usage:
 Options:
   --config, -c    Path to toryo.config.json (default: ./toryo.config.json)
   --cycles, -n    Max cycles to run (default: unlimited)
+  --task, -t      Run only the task matching this ID (substring match)
 `;
 
 async function main() {
@@ -55,13 +56,35 @@ async function loadConfig(args: string[]): Promise<ToryoConfig> {
     ? resolve(args[configIndex + 1])
     : resolve('toryo.config.json');
 
-  const raw = await readFile(configPath, 'utf-8');
-  return JSON.parse(raw);
+  let raw: string;
+  try {
+    raw = await readFile(configPath, 'utf-8');
+  } catch (err: unknown) {
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`Config file not found: ${configPath}. Run 'toryo init' to create one.`);
+    }
+    throw new Error(`Error reading config: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch (err: unknown) {
+    if (err instanceof SyntaxError) {
+      throw new Error(`Invalid JSON in config file: ${err.message}`);
+    }
+    throw err;
+  }
 }
 
 function parseMaxCycles(args: string[]): number | undefined {
   const cyclesIndex = args.indexOf('--cycles') !== -1 ? args.indexOf('--cycles') : args.indexOf('-n');
   if (cyclesIndex !== -1) return parseInt(args[cyclesIndex + 1], 10);
+  return undefined;
+}
+
+function parseTaskFilter(args: string[]): string | undefined {
+  const taskIndex = args.indexOf('--task') !== -1 ? args.indexOf('--task') : args.indexOf('-t');
+  if (taskIndex !== -1) return args[taskIndex + 1];
   return undefined;
 }
 
@@ -116,9 +139,19 @@ async function runCommand(args: string[]) {
   }
 
   // Load task specs
-  const tasks = typeof config.tasks === 'string'
+  let tasks = typeof config.tasks === 'string'
     ? await loadSpecs(resolve(config.tasks))
     : config.tasks;
+
+  const taskFilter = parseTaskFilter(args);
+  if (taskFilter) {
+    const filtered = tasks.filter(t => t.id === taskFilter || t.id.includes(taskFilter));
+    if (filtered.length === 0) {
+      console.error(`No task matching "${taskFilter}". Available: ${tasks.map(t => t.id).join(', ')}`);
+      process.exit(1);
+    }
+    tasks = filtered;
+  }
 
   if (tasks.length === 0) {
     console.error('No task specs found. Run `toryo init` to create examples.');
@@ -305,6 +338,7 @@ async function dashboardCommand(args: string[]) {
 }
 
 main().catch((error) => {
-  console.error('Fatal:', error);
+  const msg = error instanceof Error ? error.message : String(error);
+  console.error(`Error: ${msg}`);
   process.exit(1);
 });

@@ -505,6 +505,7 @@ Describe the task here.
     let metrics = null;
     let results = [];
     let events = [];
+    let agentConfigs = {};  // loaded from /api/config
     let sortCol = 'cycle';
     let sortDir = 'desc';
     const MAX_EVENTS = 200;
@@ -625,7 +626,8 @@ Describe the task here.
 
         var adapterEl = document.createElement('div');
         adapterEl.className = 'agent-adapter';
-        adapterEl.textContent = agent.adapter || 'unknown';
+        var cfg = agentConfigs[id] || {};
+        adapterEl.textContent = cfg.adapter ? cfg.adapter + (cfg.model ? ' / ' + cfg.model : '') : 'unknown';
         card.appendChild(adapterEl);
 
         var badge = document.createElement('span');
@@ -819,9 +821,12 @@ Describe the task here.
         var responses = await Promise.all([
           fetch('/api/metrics'),
           fetch('/api/results'),
+          fetch('/api/config'),
         ]);
         metrics = await responses[0].json();
         results = await responses[1].json();
+        var configData = await responses[2].json();
+        agentConfigs = configData.agents || {};
         renderMetrics();
         renderAgents();
         renderResults();

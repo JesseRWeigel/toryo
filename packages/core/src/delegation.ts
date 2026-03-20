@@ -108,21 +108,48 @@ export function createDelegation(config: Partial<DelegationConfig> = {}) {
       review: ['review', 'score', 'quality', 'audit', 'check', 'qa'],
     };
 
+    // Score each agent per dimension: count how many synonyms match their strengths
     for (const [dimension] of dimensions) {
       const terms = synonyms[dimension] ?? [dimension];
+
+      let bestId: string | null = null;
+      let bestScore = 0;
+      let bestTrust = -1;
+      let bestHasExact = false;
+
       for (const [id, agent] of Object.entries(agents)) {
-        const hasStrength = agent.strengths.some((s) =>
-          terms.some((t) => s.toLowerCase().includes(t)),
+        const state = states[id];
+        // Skip agents with very low trust if they have enough history
+        if (state && state.tasksCompleted >= 5 && computeTrust(state) < 0.4) {
+          continue;
+        }
+
+        // Count how many synonyms match any of this agent's strengths
+        const matchCount = terms.filter((t) =>
+          agent.strengths.some((s) => s.toLowerCase().includes(t)),
+        ).length;
+
+        if (matchCount === 0) continue;
+
+        const trust = state ? computeTrust(state) : cfg.initialTrust;
+        const hasExact = agent.strengths.some(
+          (s) => s.toLowerCase() === dimension,
         );
-        if (hasStrength) {
-          const state = states[id];
-          // Skip agents with very low trust if they have enough history
-          if (state && state.tasksCompleted >= 5 && computeTrust(state) < 0.4) {
-            continue;
-          }
-          return id;
+
+        // Pick agent with highest match count; break ties by trust, then exact match
+        if (
+          matchCount > bestScore ||
+          (matchCount === bestScore && trust > bestTrust) ||
+          (matchCount === bestScore && trust === bestTrust && hasExact && !bestHasExact)
+        ) {
+          bestId = id;
+          bestScore = matchCount;
+          bestTrust = trust;
+          bestHasExact = hasExact;
         }
       }
+
+      if (bestId) return bestId;
     }
 
     // Fallback: first agent

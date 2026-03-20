@@ -257,6 +257,90 @@ describe('createDelegation', () => {
       expect(agent).not.toBe('senku');
     });
 
+    it('prefers agent with more matching synonyms over first-declared agent', () => {
+      const d = createDelegation();
+      // Planner declared first, but coder has more matching synonyms for code dimension
+      const biasedAgents: Record<string, AgentProfile> = {
+        planner: {
+          id: 'planner',
+          adapter: 'ollama',
+          strengths: ['planning', 'design', 'code'],
+          timeout: 300,
+        },
+        coder: {
+          id: 'coder',
+          adapter: 'claude-code',
+          strengths: ['code', 'coding', 'implement', 'build', 'develop'],
+          timeout: 300,
+        },
+      };
+      const states: Record<string, AgentState> = {};
+      const agent = d.selectAgent(
+        makeSpec({ description: 'Implement a new function and create a class, build the feature, write tests' }),
+        biasedAgents,
+        states,
+      );
+      // Coder has 5 matching synonyms for the code dimension vs planner's 1
+      expect(agent).toBe('coder');
+    });
+
+    it('breaks ties with trust score', () => {
+      const d = createDelegation();
+      // Both agents have exactly one matching synonym for research
+      const tiedAgents: Record<string, AgentProfile> = {
+        agent_a: {
+          id: 'agent_a',
+          adapter: 'ollama',
+          strengths: ['research'],
+          timeout: 300,
+        },
+        agent_b: {
+          id: 'agent_b',
+          adapter: 'ollama',
+          strengths: ['research'],
+          timeout: 300,
+        },
+      };
+      const states: Record<string, AgentState> = {
+        agent_a: makeState({ id: 'agent_a', tasksCompleted: 5, avgScore: 6.0 }),
+        agent_b: makeState({ id: 'agent_b', tasksCompleted: 5, avgScore: 8.0 }),
+      };
+      const agent = d.selectAgent(
+        makeSpec({ description: 'Research and analyze the problem, investigate deeply' }),
+        tiedAgents,
+        states,
+      );
+      // agent_b has higher trust (0.8 vs 0.6)
+      expect(agent).toBe('agent_b');
+    });
+
+    it('prefers agent with exact dimension word in strengths when score and trust tie', () => {
+      const d = createDelegation();
+      // Both agents match one synonym, same trust, but only one has the exact dimension word
+      const exactAgents: Record<string, AgentProfile> = {
+        agent_x: {
+          id: 'agent_x',
+          adapter: 'ollama',
+          strengths: ['qa'],
+          timeout: 300,
+        },
+        agent_y: {
+          id: 'agent_y',
+          adapter: 'ollama',
+          strengths: ['review'],
+          timeout: 300,
+        },
+      };
+      const states: Record<string, AgentState> = {};
+      const agent = d.selectAgent(
+        makeSpec({ description: 'Review and audit the code, check for issues, validate and verify, assess quality, score it' }),
+        exactAgents,
+        states,
+      );
+      // agent_y has the exact dimension word "review" for the review dimension
+      expect(agent).toBe('agent_y');
+    });
+
     it('falls back to first agent when no strengths match', () => {
       const d = createDelegation();
       const states: Record<string, AgentState> = {};

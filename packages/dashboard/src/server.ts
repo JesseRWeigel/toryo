@@ -118,6 +118,21 @@ app.get('/api/results', async (c) => {
   return c.json(results);
 });
 
+// Config endpoint — provides agent adapter/model info for the dashboard
+const CONFIG_FILE = resolve(process.env.TORYO_CONFIG_FILE || 'toryo.config.json');
+
+app.get('/api/config', async (c) => {
+  try {
+    if (!existsSync(CONFIG_FILE)) return c.json({});
+    const raw = await readFile(CONFIG_FILE, 'utf-8');
+    const config = JSON.parse(raw);
+    // Only expose agent configs (not secrets)
+    return c.json({ agents: config.agents || {} });
+  } catch {
+    return c.json({});
+  }
+});
+
 // --- Spec editor API ---
 
 const SPECS_DIR = resolve(process.env.TORYO_SPECS_DIR || 'specs');

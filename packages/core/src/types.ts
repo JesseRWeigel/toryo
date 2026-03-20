@@ -184,6 +184,19 @@ export type NotificationEvent =
   | 'status'         // periodic summary
   | 'cycle_complete'; // every cycle
 
+// --- Project Context Types ---
+
+export interface ProjectContext {
+  /** Root directory to scan for context */
+  projectDir?: string;
+  /** Glob patterns to include */
+  include?: string[];
+  /** Glob patterns to exclude */
+  exclude?: string[];
+  /** Max characters of file content to include */
+  maxContextChars?: number;
+}
+
 // --- Config Types ---
 
 export interface ToryoConfig {
@@ -205,6 +218,8 @@ export interface ToryoConfig {
   notifications?: NotificationConfig;
   /** Phases to run per cycle (default: all 4) */
   phases?: PhaseName[];
+  /** Project context configuration */
+  context?: ProjectContext;
 }
 
 // --- Adapter Interface ---
