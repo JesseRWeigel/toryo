@@ -448,6 +448,12 @@ export async function createOrchestrator(options: OrchestratorOptions) {
         try {
           const result = await runCycle(cycleNum, task);
           results.push(result);
+
+          // Delay between cycles if configured
+          const delay = config.delayBetweenCycles;
+          if (delay && delay > 0 && !shuttingDown) {
+            await new Promise((r) => setTimeout(r, delay * 1000));
+          }
         } catch (error) {
           if (shuttingDown) {
             // Interrupted mid-cycle — log as skip

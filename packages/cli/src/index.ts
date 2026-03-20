@@ -94,35 +94,53 @@ function parseTaskFilter(args: string[]): string | undefined {
   return undefined;
 }
 
+// ANSI color helpers
+const c = {
+  dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
+  green: (s: string) => `\x1b[32m${s}\x1b[0m`,
+  red: (s: string) => `\x1b[31m${s}\x1b[0m`,
+  yellow: (s: string) => `\x1b[33m${s}\x1b[0m`,
+  cyan: (s: string) => `\x1b[36m${s}\x1b[0m`,
+  bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
+};
+
+function colorScore(score: number): string {
+  const s = `${score}/10`;
+  if (score >= 8) return c.green(s);
+  if (score >= 6) return c.yellow(s);
+  return c.red(s);
+}
+
 function formatEvent(event: ToryoEvent): string {
-  const time = new Date().toLocaleTimeString();
+  const time = c.dim(new Date().toLocaleTimeString());
 
   switch (event.type) {
     case 'cycle:start':
-      return `[${time}] ⟳ Cycle ${event.cycle}: ${event.task}`;
+      return `${time} ${c.bold(`⟳ Cycle ${event.cycle}`)}: ${event.task}`;
     case 'phase:start':
-      return `[${time}]   → ${event.phase} (${event.agent})`;
+      return `${time}   → ${event.phase} ${c.cyan(`(${event.agent})`)}`;
     case 'phase:complete':
-      return `[${time}]   ✓ ${event.phase} done (${(event.result.durationMs / 1000).toFixed(1)}s, ${event.result.extractions.length} extractions)`;
+      return `${time}   ${c.green('✓')} ${event.phase} done ${c.dim(`(${(event.result.durationMs / 1000).toFixed(1)}s, ${event.result.extractions.length} extractions)`)}`;
     case 'review:complete':
-      return `[${time}]   ★ Score: ${event.review.score}/10 — ${event.review.verdict.toUpperCase()}`;
+      return `${time}   ★ Score: ${colorScore(event.review.score)} — ${event.review.verdict === 'pass' ? c.green('PASS') : event.review.verdict === 'needs_revision' ? c.yellow('NEEDS_REVISION') : c.red('FAIL')}`;
     case 'ratchet:keep':
-      return `[${time}]   ✓ KEEP (${event.score}/10)`;
+      return `${time}   ${c.green(`✓ KEEP (${event.score}/10)`)}`;
     case 'ratchet:revert':
-      return `[${time}]   ✗ REVERT (${event.score}/10)`;
+      return `${time}   ${c.red(`✗ REVERT (${event.score}/10)`)}`;
     case 'ralph:retry':
-      return `[${time}]   ↺ Ralph Loop retry ${event.attempt}`;
+      return `${time}   ${c.yellow(`↺ Ralph Loop retry ${event.attempt}`)}`;
     case 'cycle:complete': {
       const totalMs = event.result.phases.reduce((s, p) => s + p.durationMs, 0);
       const duration = totalMs > 60000 ? `${(totalMs / 60000).toFixed(1)}m` : `${(totalMs / 1000).toFixed(0)}s`;
-      return `[${time}] ● Cycle ${event.cycle} complete: ${event.result.verdict} (${event.result.finalScore}/10) in ${duration}`;
+      const verdict = event.result.verdict === 'keep' ? c.green('keep') : c.red(event.result.verdict);
+      return `${time} ● Cycle ${event.cycle} complete: ${verdict} (${colorScore(event.result.finalScore)}) ${c.dim(`in ${duration}`)}`;
     }
     case 'metrics:update':
-      return `[${time}]   📊 ${event.metrics.cyclesCompleted} cycles, ${(event.metrics.successRate * 100).toFixed(0)}% success`;
+      return `${time}   📊 ${event.metrics.cyclesCompleted} cycles, ${(event.metrics.successRate * 100).toFixed(0)}% success`;
     case 'extraction:saved':
-      return `[${time}]   💾 Saved ${event.extraction.type}: ${event.extraction.path}`;
+      return `${time}   💾 Saved ${event.extraction.type}: ${c.dim(event.extraction.path)}`;
     default:
-      return `[${time}] ${JSON.stringify(event)}`;
+      return `${time} ${JSON.stringify(event)}`;
   }
 }
 

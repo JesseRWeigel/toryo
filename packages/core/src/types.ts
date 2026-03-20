@@ -226,6 +226,8 @@ export interface ToryoConfig {
   phases?: PhaseName[];
   /** Project context configuration */
   context?: ProjectContext;
+  /** Delay in seconds between cycles (default: 0) */
+  delayBetweenCycles?: number;
 }
 
 // --- Adapter Interface ---
