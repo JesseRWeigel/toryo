@@ -2,7 +2,7 @@
 
 All notable changes to Toryo are documented here.
 
-## [0.2.0] — Unreleased
+## [0.2.0] — 2026-03-20
 
 ### Added
 - **`toryo check`** — Preflight validation: validates config, checks adapter availability, lists specs
@@ -26,6 +26,10 @@ All notable changes to Toryo are documented here.
 - **Codex CLI adapter** — First-class support for OpenAI Codex
 - **Stdin prompt delivery** — Claude Code adapter pipes via stdin to avoid arg length limits
 - **Delay between cycles** — `delayBetweenCycles` config option for continuous runs
+- **`toryo export`** — Generate markdown report from results (summary, agent performance, full results table)
+- **`--verbose` / `--quiet` flags** — Control output verbosity (quiet = 3 lines per cycle)
+- **Score color-coding** — ANSI colors in CLI: green (8+), yellow (6-7), red (<6)
+- **Adapter unit tests** — 21 tests covering all 6 adapters + factory function
 
 ### Fixed
 - **Critical: Agent delegation bias** — Scoring-based selection instead of first-match; agents correctly route to specialists (planner→plan, coder→execute, reviewer→review)

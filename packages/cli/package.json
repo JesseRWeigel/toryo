@@ -1,6 +1,6 @@
 {
   "name": "@jweigel/toryo",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "棟梁 The intelligent agent orchestrator — chains AI coding agents with trust-based delegation and quality ratcheting",
   "type": "module",
   "license": "MIT",

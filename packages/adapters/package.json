@@ -1,6 +1,6 @@
 {
   "name": "toryo-adapters",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Agent adapters for Toryo — Claude Code, Aider, Gemini CLI, Ollama, and more",
   "type": "module",
   "main": "dist/index.js",

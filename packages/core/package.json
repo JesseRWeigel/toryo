@@ -1,6 +1,6 @@
 {
   "name": "toryo-core",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Core engine for the Toryo intelligent agent orchestrator",
   "type": "module",
   "main": "dist/index.js",
