@@ -14,6 +14,7 @@ Usage:
   toryo status [--config <path>]                Show metrics and agent states
   toryo dashboard [--config <path>]             Open real-time web dashboard
   toryo history [--config <path>]                Show score trend chart
+  toryo demo                                     Run a simulated cycle (no AI tools needed)
   toryo export [--config <path>]                 Export results as markdown report
   toryo check [--config <path>]                 Validate config and check tools
   toryo init                                    Create example config + specs
@@ -58,6 +59,9 @@ async function main() {
       break;
     case 'history':
       await historyCommand(args.slice(1));
+      break;
+    case 'demo':
+      await demoCommand();
       break;
     default:
       console.error(`Unknown command: ${command}`);
@@ -519,6 +523,64 @@ async function historyCommand(args: string[]) {
     const recentAvg = recent5.reduce((a, b) => a + b, 0) / recent5.length;
     console.log(`  avg: ${avg.toFixed(1)}/10  recent: ${recentAvg.toFixed(1)}/10  cycles: ${data.length}\n`);
   }
+}
+
+async function demoCommand() {
+  console.log(`\n${c.bold('棟梁 Toryo — Demo Mode')}\n`);
+  console.log('  Running a simulated orchestration cycle to show how Toryo works.');
+  console.log('  No AI tools or config needed — this uses mock agents.\n');
+
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const time = () => c.dim(new Date().toLocaleTimeString());
+
+  // Simulate a full cycle
+  console.log(`${time()} ${c.bold('⟳ Cycle 1')}: write-unit-tests`);
+  await sleep(500);
+
+  console.log(`${time()}   → plan ${c.cyan('(planner)')}`);
+  await sleep(800);
+  console.log(`${time()}   ${c.green('✓')} plan done ${c.dim('(2.1s, 0 extractions)')}`);
+
+  console.log(`${time()}   → research ${c.cyan('(researcher)')}`);
+  await sleep(800);
+  console.log(`${time()}   ${c.green('✓')} research done ${c.dim('(3.4s, 0 extractions)')}`);
+
+  console.log(`${time()}   → execute ${c.cyan('(coder)')}`);
+  await sleep(1200);
+  console.log(`${time()}   💾 Saved code: ${c.dim('.toryo/output/execute-cycle1_0.ts')}`);
+  console.log(`${time()}   ${c.green('✓')} execute done ${c.dim('(15.2s, 2 extractions)')}`);
+
+  console.log(`${time()}   → review ${c.cyan('(reviewer)')}`);
+  await sleep(800);
+  console.log(`${time()}   ★ Score: ${c.red('4/10')} — ${c.red('FAIL')}`);
+  console.log(`${time()}   ${c.red('✗ REVERT (4/10)')}`);
+
+  // Ralph Loop
+  console.log(`${time()}   ${c.yellow('↺ Ralph Loop retry 1')}`);
+  await sleep(500);
+
+  console.log(`${time()}   → execute ${c.cyan('(coder)')}`);
+  await sleep(1000);
+  console.log(`${time()}   💾 Saved code: ${c.dim('.toryo/output/execute-cycle1_0.ts')}`);
+  console.log(`${time()}   ${c.green('✓')} execute done ${c.dim('(12.8s, 1 extractions)')}`);
+
+  console.log(`${time()}   → review ${c.cyan('(reviewer)')}`);
+  await sleep(800);
+  console.log(`${time()}   ${c.green('✓ KEEP (8/10)')}`);
+  console.log(`${time()}   📊 1 cycles, 100% success`);
+  console.log(`${time()} ● Cycle 1 complete: ${c.green('keep')} (${c.green('8/10')}) ${c.dim('in 34.5s')}`);
+
+  console.log(`\n${c.bold('What just happened:')}`);
+  console.log('  1. Planner analyzed the task and created a brief');
+  console.log('  2. Researcher gathered context about the codebase');
+  console.log('  3. Coder wrote unit tests — scored 4/10 by reviewer');
+  console.log(`  4. ${c.red('Git reverted')} the bad output (quality ratcheting)`);
+  console.log(`  5. ${c.yellow('Ralph Loop')} fed QA feedback back to the coder`);
+  console.log(`  6. Coder produced better output — scored ${c.green('8/10')}, ${c.green('committed')}`);
+  console.log(`\n${c.bold('To run for real:')}`);
+  console.log('  toryo init      # auto-detects your AI tools');
+  console.log('  toryo check     # validates your setup');
+  console.log('  toryo run       # start orchestrating\n');
 }
 
 async function exportCommand(args: string[]) {
