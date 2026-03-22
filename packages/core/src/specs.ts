@@ -19,6 +19,7 @@ interface SpecFrontmatter {
   difficulty?: number;
   tags?: string[];
   acceptance_criteria?: string[];
+  reasoning_effort?: string;
 }
 
 export async function loadSpecs(specsPath: string): Promise<TaskSpec[]> {
@@ -87,6 +88,7 @@ export function parseSpec(content: string, defaultId: string): TaskSpec | null {
     phases,
     difficulty: frontmatter.difficulty,
     tags: frontmatter.tags,
+    reasoningEffort: frontmatter.reasoning_effort as import('./types.js').ReasoningEffort | undefined,
   };
 }
 

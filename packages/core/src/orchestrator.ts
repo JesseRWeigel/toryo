@@ -87,10 +87,19 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     }
   }
 
+  /** Default reasoning effort per phase type */
+  const PHASE_REASONING_DEFAULTS: Record<string, import('./types.js').ReasoningEffort> = {
+    plan: 'high',
+    research: 'high',
+    execute: 'medium',
+    review: 'medium',
+  };
+
   async function sendToAgent(
     agentId: string,
     prompt: string,
     phase: PhaseName,
+    taskReasoningEffort?: import('./types.js').ReasoningEffort,
   ): Promise<{ output: string; durationMs: number; infraFailure: boolean; error?: string }> {
     const agentConfig = config.agents[agentId];
     if (!agentConfig) throw new Error(`Unknown agent: ${agentId}`);
@@ -101,6 +110,9 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     const state = agentStates[agentId];
     const autonomyPrefix = delegation.getAutonomyInstructions(state.autonomyLevel);
 
+    // Task-level effort overrides phase default
+    const reasoningEffort = taskReasoningEffort ?? PHASE_REASONING_DEFAULTS[phase] ?? 'medium';
+
     const response = await adapter.send({
       agentId,
       prompt,
@@ -108,6 +120,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
       model: agentConfig.model,
       autonomyPrefix,
       cwd,
+      reasoningEffort,
     });
 
     return response;
@@ -147,10 +160,11 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     agentId: string,
     prompt: string,
     cycleNum: number,
+    reasoningEffort?: import('./types.js').ReasoningEffort,
   ): Promise<PhaseResult> {
     emit({ type: 'phase:start', cycle: cycleNum, phase, agent: agentId });
 
-    const response = await sendToAgent(agentId, prompt, phase);
+    const response = await sendToAgent(agentId, prompt, phase, reasoningEffort);
 
     // Check for infrastructure failures (timeout, connection refused, etc.)
     if (response.infraFailure) {
@@ -213,7 +227,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
       // --- Parallel execution: run multiple agents concurrently ---
       if (assignment?.parallel && assignment.parallel.agents.length > 0) {
         const parallelResults = await Promise.all(
-          assignment.parallel.agents.map((id) => runPhase(phase, id, prompt, cycleNum)),
+          assignment.parallel.agents.map((id) => runPhase(phase, id, prompt, cycleNum, task.reasoningEffort)),
         );
 
         let mergedResult: PhaseResult;
@@ -268,7 +282,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
           agentId = delegation.selectAgent(phaseTask, config.agents, agentStates);
         }
 
-        const result = await runPhase(phase, agentId, prompt, cycleNum);
+        const result = await runPhase(phase, agentId, prompt, cycleNum, task.reasoningEffort);
         phaseResults.push(result);
         previousOutput = result.output;
       }
@@ -296,7 +310,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
       : previousOutput;
 
     const reviewPrompt = buildReviewPrompt(task, executeOutput);
-    const reviewResult = await runPhase(reviewPhase, reviewerAgentId, reviewPrompt, cycleNum);
+    const reviewResult = await runPhase(reviewPhase, reviewerAgentId, reviewPrompt, cycleNum, task.reasoningEffort);
 
     const reviewScore = parseScore(reviewResult.output);
     const review: ReviewResult = {
@@ -332,7 +346,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
         const executeAgent = phaseResults.find((p) => p.phase === lastWorkPhase)?.agentId ??
           Object.keys(config.agents)[0];
         const retryPrompt = ratchet.buildRetryPrompt(task.description, review.feedback, retryCount);
-        const retryResult = await runPhase(lastWorkPhase, executeAgent, retryPrompt, cycleNum);
+        const retryResult = await runPhase(lastWorkPhase, executeAgent, retryPrompt, cycleNum, task.reasoningEffort);
 
         // Commit retry
         if (await ratchet.isGitRepo()) {
@@ -343,7 +357,7 @@ export async function createOrchestrator(options: OrchestratorOptions) {
         }
 
         // Re-review
-        const retryReviewResult = await runPhase(reviewPhase, reviewerAgentId, buildReviewPrompt(task, retryResult.output), cycleNum);
+        const retryReviewResult = await runPhase(reviewPhase, reviewerAgentId, buildReviewPrompt(task, retryResult.output), cycleNum, task.reasoningEffort);
         const retryScore = parseScore(retryReviewResult.output);
         const retryReview: ReviewResult = {
           score: retryScore,

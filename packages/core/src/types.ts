@@ -48,7 +48,11 @@ export interface TaskSpec {
   difficulty?: number;
   /** Tags for filtering/grouping */
   tags?: string[];
+  /** Reasoning effort for this task (affects thinking depth) */
+  reasoningEffort?: ReasoningEffort;
 }
+
+export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'max';
 
 export interface PhaseAssignment {
   phase: PhaseName;
@@ -241,6 +245,8 @@ export interface AdapterSendOptions {
   autonomyPrefix?: string;
   /** Working directory for the agent */
   cwd?: string;
+  /** Reasoning effort hint for the model */
+  reasoningEffort?: ReasoningEffort;
 }
 
 export interface AdapterResponse {

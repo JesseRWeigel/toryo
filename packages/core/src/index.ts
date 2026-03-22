@@ -45,6 +45,7 @@ export type {
   AdapterResponse,
   ToryoEvent,
   ProjectContext,
+  ReasoningEffort,
 } from './types.js';
 export { BUILT_IN_PHASES } from './types.js';
 export type { BuiltInPhase } from './types.js';
