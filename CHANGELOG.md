@@ -2,6 +2,13 @@
 
 All notable changes to Toryo are documented here.
 
+## [Unreleased]
+
+## [0.3.0] — 2026-04-17
+
+### Added
+- **Message bus module (`toryo-core/bus`)** — Pipecat Sub-Agents inspired primitives for agent coordination. Typed `BusMessage` union (`TaskRequest`, `TaskResponse`, `TaskUpdate`, `TaskStreamStart/Data/End`, `TaskCancel`), zero-dep `InMemoryBus`, `createTaskContext(bus, name, payload)` for single-task dispatch with async iteration + terminal `.result` promise + cancel-on-exception/timeout, and `taskGroup(bus, tasks)` for parallel fanout with per-agent event attribution and a `.results` Map. Additive only — existing orchestrator APIs unchanged.
+
 ## [0.2.0] — 2026-03-20
 
 ### Added

@@ -18,6 +18,24 @@ export { gatherProjectContext } from './context.js';
 export { validateConfig } from './config.js';
 export type { ConfigValidationResult } from './config.js';
 
+// Message bus (Pipecat Sub-Agents inspired)
+export { InMemoryBus } from './bus/bus.js';
+export type { AgentBus, BusHandler } from './bus/bus.js';
+export { createTaskContext } from './bus/task-context.js';
+export type { TaskContext, TaskContextOptions } from './bus/task-context.js';
+export { taskGroup } from './bus/task-group.js';
+export type { TaskGroup, TaskGroupEntry, TaskGroupEvent, TaskGroupOptions } from './bus/task-group.js';
+export type {
+  BusMessage,
+  TaskRequest,
+  TaskResponse,
+  TaskUpdate,
+  TaskStreamStart,
+  TaskStreamData,
+  TaskStreamEnd,
+  TaskCancel,
+} from './bus/messages.js';
+
 // Types
 export type {
   ToryoConfig,

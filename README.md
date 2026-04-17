@@ -18,7 +18,7 @@ npx @jweigel/toryo run     # start orchestration
 
 **Try instantly:** `npx @jweigel/toryo demo` (no AI tools needed)
 
-**[Documentation](docs/)** | **[Getting Started](docs/getting-started.md)** | **[Configuration](docs/configuration.md)** | **[Contributing](CONTRIBUTING.md)**
+**[Documentation](docs/)** | **[Getting Started](docs/getting-started.md)** | **[Configuration](docs/configuration.md)** | **[Bus Pattern](docs/bus-pattern.md)** | **[Contributing](CONTRIBUTING.md)**
 
 ![Toryo Run — Full cycle with Ralph Loop retry](docs/images/toryo-run.png)
 
