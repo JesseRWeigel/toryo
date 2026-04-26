@@ -3,19 +3,21 @@ import type { AdapterSendOptions } from 'toryo-core';
 
 /**
  * Adapter for Codex CLI (codex).
- * Uses --prompt mode for non-interactive single-prompt execution.
+ * Uses `codex exec` with stdin for non-interactive single-prompt execution.
  */
 export class CodexAdapter extends CliAdapter {
   name = 'codex';
 
   buildCommand(options: AdapterSendOptions) {
-    const args = ['--prompt', '{{PROMPT}}'];
+    const args = ['exec'];
 
     if (options.model) {
-      args.unshift('--model', options.model);
+      args.push('--model', options.model);
     }
 
-    return { command: 'codex', args };
+    args.push('-');
+
+    return { command: 'codex', args, useStdin: true };
   }
 
   parseOutput(stdout: string): string {

@@ -92,14 +92,15 @@ describe('CodexAdapter', () => {
     expect(adapter.name).toBe('codex');
   });
 
-  it('builds command with --prompt', () => {
-    const { command, args } = adapter.buildCommand({
+  it('builds command with exec and stdin mode', () => {
+    const { command, args, useStdin } = adapter.buildCommand({
       agentId: 'test',
       prompt: 'test',
       timeout: 60,
     });
     expect(command).toBe('codex');
-    expect(args).toContain('--prompt');
+    expect(args).toEqual(['exec', '-']);
+    expect(useStdin).toBe(true);
   });
 });
 

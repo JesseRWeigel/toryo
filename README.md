@@ -142,7 +142,7 @@ Toryo ships with first-class adapters for 5 tools + a generic adapter for anythi
 | `aider` | [Aider](https://aider.chat) | `aider --message` |
 | `gemini-cli` | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini --prompt` |
 | `ollama` | [Ollama](https://ollama.ai) | Direct HTTP API (no CLI needed) |
-| `codex` | [Codex CLI](https://github.com/openai/codex) | `codex --prompt` |
+| `codex` | [Codex CLI](https://github.com/openai/codex) | `codex exec` |
 | `custom` | Any CLI tool | Configurable command + args |
 
 Mix and match — use Claude Code for research, Ollama for local code generation, and Gemini for review:

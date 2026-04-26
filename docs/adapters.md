@@ -130,16 +130,16 @@ gemini --model gemini-2.5-pro --prompt "your prompt here"
 
 ### Codex CLI (`codex`)
 
-Wraps the [Codex CLI](https://github.com/openai/codex) using `--prompt` mode.
+Wraps the [Codex CLI](https://github.com/openai/codex) using `exec` mode with stdin.
 
 **Prerequisites:** Install Codex CLI and configure your OpenAI API key.
 
 **How it runs:**
 
 ```bash
-codex --prompt "your prompt here"
+echo "your prompt here" | codex exec -
 # With model selection:
-codex --model o4-mini --prompt "your prompt here"
+echo "your prompt here" | codex exec --model o4-mini -
 ```
 
 **Config example:**
