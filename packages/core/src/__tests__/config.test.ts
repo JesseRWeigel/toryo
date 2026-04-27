@@ -59,7 +59,7 @@ describe('validateConfig', () => {
   });
 
   it('accepts all known adapters', () => {
-    for (const adapter of ['claude-code', 'aider', 'gemini-cli', 'codex', 'cursor', 'ollama', 'custom']) {
+    for (const adapter of ['claude-code', 'aider', 'gemini-cli', 'codex', 'cursor', 'cline', 'ollama', 'custom']) {
       const result = validateConfig({
         agents: { a: { adapter, strengths: ['code'], timeout: 60 } },
         tasks: './specs/',

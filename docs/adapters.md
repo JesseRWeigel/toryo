@@ -189,6 +189,38 @@ agent --model cursor-fast -p --force --output-format text "your prompt here"
 
 **Availability check:** Runs `which agent`.
 
+### Cline CLI (`cline`)
+
+Wraps the [Cline CLI 2.0](https://cline.bot) using `--yolo` mode for auto-approval in non-interactive orchestrator usage.
+
+**Prerequisites:** Install Cline (`npm install -g cline`) and run `cline auth` to configure credentials.
+
+**How it runs:**
+
+```bash
+cline --yolo "your prompt here"
+# With model selection:
+cline --model claude-sonnet-4-6 --yolo "your prompt here"
+```
+
+**Config example:**
+
+```json
+{
+  "adapter": "cline",
+  "model": "claude-sonnet-4-6",
+  "strengths": ["code", "implementation"],
+  "timeout": 900
+}
+```
+
+**Flags used:**
+- `--yolo` (alias `-y`) -- Auto-approve all actions for non-interactive runs. Required for orchestrator usage.
+
+**Authentication:** Cline manages credentials through `cline auth` and stores them in its configuration directory. Toryo does not need to set environment variables.
+
+**Availability check:** Runs `which cline`.
+
 ### Ollama (`ollama`)
 
 Connects directly to [Ollama's](https://ollama.ai) HTTP API. Unlike the other adapters, this does not spawn a CLI process -- it makes HTTP requests to the Ollama server.
@@ -265,7 +297,7 @@ const claude = createAdapter('claude-code');
 const ollama = createAdapter('ollama', { baseUrl: 'http://gpu-server:11434' });
 ```
 
-Supported names: `claude-code`, `aider`, `gemini-cli`, `codex`, `cursor`, `ollama`.
+Supported names: `claude-code`, `aider`, `gemini-cli`, `codex`, `cursor`, `cline`, `ollama`.
 
 ## Writing Your Own Adapter
 

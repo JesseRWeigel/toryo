@@ -311,7 +311,7 @@ async function initCommand() {
   console.log('\n棟梁 Toryo — Initializing...\n');
 
   // Detect available tools
-  const tools = ['claude-code', 'aider', 'gemini-cli', 'codex', 'cursor', 'ollama'] as const;
+  const tools = ['claude-code', 'aider', 'gemini-cli', 'codex', 'cursor', 'cline', 'ollama'] as const;
   const available: string[] = [];
 
   for (const name of tools) {

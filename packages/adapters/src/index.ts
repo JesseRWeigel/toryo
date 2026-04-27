@@ -2,6 +2,7 @@ export { CliAdapter } from './base.js';
 export { ClaudeCodeAdapter } from './claude-code.js';
 export { CodexAdapter } from './codex.js';
 export { CursorAdapter } from './cursor.js';
+export { ClineAdapter } from './cline.js';
 export { AiderAdapter } from './aider.js';
 export { GeminiCliAdapter } from './gemini-cli.js';
 export { OllamaAdapter } from './ollama.js';
@@ -11,6 +12,7 @@ import type { AgentAdapter } from 'toryo-core';
 import { ClaudeCodeAdapter } from './claude-code.js';
 import { CodexAdapter } from './codex.js';
 import { CursorAdapter } from './cursor.js';
+import { ClineAdapter } from './cline.js';
 import { AiderAdapter } from './aider.js';
 import { GeminiCliAdapter } from './gemini-cli.js';
 import { OllamaAdapter } from './ollama.js';
@@ -24,6 +26,8 @@ export function createAdapter(name: string, options?: Record<string, unknown>): 
       return new CodexAdapter();
     case 'cursor':
       return new CursorAdapter();
+    case 'cline':
+      return new ClineAdapter();
     case 'aider':
       return new AiderAdapter();
     case 'gemini-cli':
