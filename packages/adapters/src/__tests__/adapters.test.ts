@@ -4,6 +4,7 @@ import {
   AiderAdapter,
   GeminiCliAdapter,
   CodexAdapter,
+  CursorAdapter,
   OllamaAdapter,
   CustomAdapter,
   createAdapter,
@@ -104,6 +105,43 @@ describe('CodexAdapter', () => {
   });
 });
 
+describe('CursorAdapter', () => {
+  const adapter = new CursorAdapter();
+
+  it('has correct name', () => {
+    expect(adapter.name).toBe('cursor');
+  });
+
+  it('builds command with -p, --force, and {{PROMPT}}', () => {
+    const { command, args } = adapter.buildCommand({
+      agentId: 'test',
+      prompt: 'test',
+      timeout: 60,
+    });
+    expect(command).toBe('agent');
+    expect(args).toContain('-p');
+    expect(args).toContain('--force');
+    expect(args).toContain('--output-format');
+    expect(args).toContain('text');
+    expect(args).toContain('{{PROMPT}}');
+  });
+
+  it('includes --model when model is specified', () => {
+    const { args } = adapter.buildCommand({
+      agentId: 'test',
+      prompt: 'test',
+      timeout: 60,
+      model: 'cursor-fast',
+    });
+    expect(args).toContain('--model');
+    expect(args).toContain('cursor-fast');
+  });
+
+  it('parseOutput trims whitespace', () => {
+    expect(adapter.parseOutput('  hello world  \n', '')).toBe('hello world');
+  });
+});
+
 describe('OllamaAdapter', () => {
   it('has correct name', () => {
     const adapter = new OllamaAdapter();
@@ -161,6 +199,11 @@ describe('createAdapter', () => {
   it('creates codex adapter', () => {
     const adapter = createAdapter('codex');
     expect(adapter.name).toBe('codex');
+  });
+
+  it('creates cursor adapter', () => {
+    const adapter = createAdapter('cursor');
+    expect(adapter.name).toBe('cursor');
   });
 
   it('creates ollama adapter', () => {

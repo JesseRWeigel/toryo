@@ -31,6 +31,7 @@ const ollama = new OllamaAdapter('http://localhost:11434');
 | `aider` | Aider | `aider --message` |
 | `gemini-cli` | Gemini CLI | `gemini --prompt` |
 | `codex` | Codex CLI | `codex exec` |
+| `cursor` | Cursor CLI | `agent -p --force` |
 | `ollama` | Ollama | Direct HTTP API |
 | `custom` | Any CLI | Configurable command + args |
 
