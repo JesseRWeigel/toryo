@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { ToryoConfig } from './types.js';
 
-const KNOWN_ADAPTERS = ['claude-code', 'aider', 'gemini-cli', 'codex', 'ollama', 'custom'];
+const KNOWN_ADAPTERS = ['claude-code', 'aider', 'gemini-cli', 'codex', 'cursor', 'ollama', 'custom'];
 const KNOWN_PROVIDERS = ['ntfy', 'slack', 'discord', 'webhook', 'none'];
 
 const AgentProfileSchema = z.object({

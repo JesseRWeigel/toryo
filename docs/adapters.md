@@ -155,6 +155,40 @@ echo "your prompt here" | codex exec --model o4-mini -
 
 **Availability check:** Runs `which codex`.
 
+### Cursor CLI (`cursor`)
+
+Wraps the [Cursor agent CLI](https://cursor.com/docs/cli/headless) using `-p` (print) mode with `--force` for non-interactive autonomous execution.
+
+**Prerequisites:** Install the Cursor CLI (`agent` binary) and set `CURSOR_API_KEY` in your environment.
+
+**How it runs:**
+
+```bash
+agent -p --force --output-format text "your prompt here"
+# With model selection:
+agent --model cursor-fast -p --force --output-format text "your prompt here"
+```
+
+**Config example:**
+
+```json
+{
+  "adapter": "cursor",
+  "model": "cursor-fast",
+  "strengths": ["code", "implementation", "refactoring"],
+  "timeout": 900
+}
+```
+
+**Flags used:**
+- `-p` / `--print` -- Non-interactive mode (single prompt, single response).
+- `--force` -- Allow direct file modifications without per-action approval. Required for orchestrator usage.
+- `--output-format text` -- Plain text output (Toryo also supports `json` and `stream-json` formats via custom adapter usage).
+
+**Authentication:** Set `CURSOR_API_KEY` in the environment. Toryo passes the parent process's environment through, so exporting the key in the shell that runs `toryo run` is sufficient.
+
+**Availability check:** Runs `which agent`.
+
 ### Ollama (`ollama`)
 
 Connects directly to [Ollama's](https://ollama.ai) HTTP API. Unlike the other adapters, this does not spawn a CLI process -- it makes HTTP requests to the Ollama server.
@@ -231,7 +265,7 @@ const claude = createAdapter('claude-code');
 const ollama = createAdapter('ollama', { baseUrl: 'http://gpu-server:11434' });
 ```
 
-Supported names: `claude-code`, `aider`, `gemini-cli`, `codex`, `ollama`.
+Supported names: `claude-code`, `aider`, `gemini-cli`, `codex`, `cursor`, `ollama`.
 
 ## Writing Your Own Adapter
 

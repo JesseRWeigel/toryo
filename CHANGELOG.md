@@ -4,6 +4,9 @@ All notable changes to Toryo are documented here.
 
 ## [Unreleased]
 
+### Added
+- **Cursor CLI adapter (`cursor`)** — wraps the `agent -p --force` non-interactive mode for the Cursor coding CLI. Requires `CURSOR_API_KEY`. Closes #31.
+
 ## [0.3.0] — 2026-04-17
 
 ### Added
