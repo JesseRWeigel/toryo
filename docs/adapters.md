@@ -43,16 +43,16 @@ Most adapters extend the `CliAdapter` base class, which handles process executio
 
 ### Claude Code (`claude-code`)
 
-Wraps the [Claude Code CLI](https://claude.ai/code) using `--print` mode for non-interactive single-prompt execution.
+Wraps the [Claude Code CLI](https://claude.ai/code) using `--print` mode (with stdin) for non-interactive single-prompt execution.
 
 **Prerequisites:** Install Claude Code CLI and authenticate.
 
 **How it runs:**
 
 ```bash
-claude --print "your prompt here"
+claude --print -                   # prompt piped via stdin
 # With model selection:
-claude --model claude-sonnet-4-6 --print "your prompt here"
+claude --model claude-sonnet-4-6 --print -
 ```
 
 **Config example:**
@@ -67,6 +67,30 @@ claude --model claude-sonnet-4-6 --print "your prompt here"
 ```
 
 **Model selection:** Pass any model name supported by the Claude CLI (e.g., `claude-sonnet-4-6`, `claude-opus-4`). If `model` is omitted, the CLI uses its default model.
+
+**Adapter options (programmatic):** The `ClaudeCodeAdapter` constructor accepts a `ClaudeCodeAdapterOptions` object that maps to 2026-era CLI flags. Defaults preserve current behavior. Available fields:
+
+| Option | CLI flag | Effect |
+|--------|----------|--------|
+| `bare` | `--bare` | Skip auto-discovery of hooks, skills, plugins, MCP servers, and CLAUDE.md. Material latency win for orchestration. |
+| `maxBudgetUsd` | `--max-budget-usd N` | Cap dollar spend per task. |
+| `maxTurns` | `--max-turns N` | Cap turns per task. |
+| `excludeDynamicSystemPromptSections` | `--exclude-dynamic-system-prompt-sections` | Improve prompt-cache reuse across distributed workers. |
+| `jsonSchema` | `--json-schema <value>` | Validate output against a JSON schema (object or pre-stringified). |
+| `agents` | `--agents <json>` | Inline subagent definitions. |
+| `sessionName` | `-r <name>` | Resume a session by name. |
+
+```ts
+import { ClaudeCodeAdapter, createAdapter } from 'toryo-adapters';
+
+// Direct construction
+const fast = new ClaudeCodeAdapter({ bare: true, maxBudgetUsd: 2, maxTurns: 8 });
+
+// Or via the factory (options object passed through)
+const adapter = createAdapter('claude-code', { bare: true, maxBudgetUsd: 5 });
+```
+
+When using `toryo.config.json`, these options are not yet routable per-agent. Either construct the adapter programmatically or use `custom` until per-agent adapter options land.
 
 **Availability check:** Runs `which claude` to verify the CLI is installed.
 

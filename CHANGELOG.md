@@ -7,6 +7,7 @@ All notable changes to Toryo are documented here.
 ### Added
 - **Cursor CLI adapter (`cursor`)** — wraps the `agent -p --force` non-interactive mode for the Cursor coding CLI. Requires `CURSOR_API_KEY`. Closes #31.
 - **Cline CLI adapter (`cline`)** — wraps `cline --yolo` for non-interactive orchestrator usage. Authenticates via `cline auth`. Closes #32.
+- **`ClaudeCodeAdapter` constructor options** — opt-in support for 2026-era flags: `bare`, `maxBudgetUsd`, `maxTurns`, `excludeDynamicSystemPromptSections`, `jsonSchema`, `agents`, and `sessionName`. Defaults preserve back-compat behavior. `createAdapter('claude-code', options)` passes the same options through. Closes #33.
 
 ## [0.3.0] — 2026-04-17
 

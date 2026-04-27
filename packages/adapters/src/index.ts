@@ -1,5 +1,5 @@
 export { CliAdapter } from './base.js';
-export { ClaudeCodeAdapter } from './claude-code.js';
+export { ClaudeCodeAdapter, type ClaudeCodeAdapterOptions } from './claude-code.js';
 export { CodexAdapter } from './codex.js';
 export { CursorAdapter } from './cursor.js';
 export { ClineAdapter } from './cline.js';
@@ -9,7 +9,7 @@ export { OllamaAdapter } from './ollama.js';
 export { CustomAdapter } from './custom.js';
 
 import type { AgentAdapter } from 'toryo-core';
-import { ClaudeCodeAdapter } from './claude-code.js';
+import { ClaudeCodeAdapter, type ClaudeCodeAdapterOptions } from './claude-code.js';
 import { CodexAdapter } from './codex.js';
 import { CursorAdapter } from './cursor.js';
 import { ClineAdapter } from './cline.js';
@@ -21,7 +21,7 @@ import { OllamaAdapter } from './ollama.js';
 export function createAdapter(name: string, options?: Record<string, unknown>): AgentAdapter {
   switch (name) {
     case 'claude-code':
-      return new ClaudeCodeAdapter();
+      return new ClaudeCodeAdapter(options as ClaudeCodeAdapterOptions | undefined);
     case 'codex':
       return new CodexAdapter();
     case 'cursor':
