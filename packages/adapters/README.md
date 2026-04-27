@@ -30,7 +30,7 @@ const ollama = new OllamaAdapter('http://localhost:11434');
 | `claude-code` | Claude Code | `claude --print` |
 | `aider` | Aider | `aider --message` |
 | `gemini-cli` | Gemini CLI | `gemini --prompt` |
-| `codex` | Codex CLI | `codex --prompt` |
+| `codex` | Codex CLI | `codex exec` |
 | `ollama` | Ollama | Direct HTTP API |
 | `custom` | Any CLI | Configurable command + args |
 
