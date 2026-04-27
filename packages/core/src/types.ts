@@ -7,7 +7,7 @@ export type AutonomyLevel = 'supervised' | 'guided' | 'autonomous';
 export interface AgentProfile {
   /** Optional identifier (agents are typically keyed by ID in the config record) */
   id?: string;
-  /** Which adapter to use (claude-code, aider, gemini-cli, ollama, codex, cursor, custom) */
+  /** Which adapter to use (claude-code, aider, gemini-cli, ollama, codex, cursor, cline, custom) */
   adapter: string;
   /** Model name passed to the adapter */
   model?: string;

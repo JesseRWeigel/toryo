@@ -134,7 +134,7 @@ toryo dashboard            # open web dashboard
 
 ## Adapters
 
-Toryo ships with first-class adapters for 6 tools + a generic adapter for anything else:
+Toryo ships with first-class adapters for 7 tools + a generic adapter for anything else:
 
 | Adapter | Tool | How it works |
 |---------|------|-------------|
@@ -144,6 +144,7 @@ Toryo ships with first-class adapters for 6 tools + a generic adapter for anythi
 | `ollama` | [Ollama](https://ollama.ai) | Direct HTTP API (no CLI needed) |
 | `codex` | [Codex CLI](https://github.com/openai/codex) | `codex exec` |
 | `cursor` | [Cursor CLI](https://cursor.com/docs/cli/overview) | `agent -p --force` (requires `CURSOR_API_KEY`) |
+| `cline` | [Cline CLI](https://cline.bot) | `cline --yolo` |
 | `custom` | Any CLI tool | Configurable command + args |
 
 Mix and match — use Claude Code for research, Ollama for local code generation, and Gemini for review:

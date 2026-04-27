@@ -5,6 +5,7 @@ import {
   GeminiCliAdapter,
   CodexAdapter,
   CursorAdapter,
+  ClineAdapter,
   OllamaAdapter,
   CustomAdapter,
   createAdapter,
@@ -142,6 +143,40 @@ describe('CursorAdapter', () => {
   });
 });
 
+describe('ClineAdapter', () => {
+  const adapter = new ClineAdapter();
+
+  it('has correct name', () => {
+    expect(adapter.name).toBe('cline');
+  });
+
+  it('builds command with --yolo and {{PROMPT}}', () => {
+    const { command, args } = adapter.buildCommand({
+      agentId: 'test',
+      prompt: 'test',
+      timeout: 60,
+    });
+    expect(command).toBe('cline');
+    expect(args).toContain('--yolo');
+    expect(args).toContain('{{PROMPT}}');
+  });
+
+  it('includes --model when model is specified', () => {
+    const { args } = adapter.buildCommand({
+      agentId: 'test',
+      prompt: 'test',
+      timeout: 60,
+      model: 'sonnet-4-6',
+    });
+    expect(args).toContain('--model');
+    expect(args).toContain('sonnet-4-6');
+  });
+
+  it('parseOutput trims whitespace', () => {
+    expect(adapter.parseOutput('  hello world  \n', '')).toBe('hello world');
+  });
+});
+
 describe('OllamaAdapter', () => {
   it('has correct name', () => {
     const adapter = new OllamaAdapter();
@@ -204,6 +239,11 @@ describe('createAdapter', () => {
   it('creates cursor adapter', () => {
     const adapter = createAdapter('cursor');
     expect(adapter.name).toBe('cursor');
+  });
+
+  it('creates cline adapter', () => {
+    const adapter = createAdapter('cline');
+    expect(adapter.name).toBe('cline');
   });
 
   it('creates ollama adapter', () => {
