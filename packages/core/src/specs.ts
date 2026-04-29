@@ -48,7 +48,7 @@ export function parseSpec(content: string, defaultId: string): TaskSpec | null {
       id: defaultId,
       name: defaultId.replace(/-/g, ' '),
       description: content.trim(),
-      acceptanceCriteria: [],
+      acceptanceCriteria: parseAcceptanceCriteria(content),
       phases: defaultPhases(),
     };
   }
