@@ -15,6 +15,18 @@ describe('parseSpec', () => {
     expect(spec!.phases.length).toBe(4);
   });
 
+  it('parses acceptance criteria from body when no frontmatter', () => {
+    const content = `This is a task description.
+
+## Acceptance Criteria
+- Item one
+- [ ] Item two
+* Item three`;
+
+    const spec = parseSpec(content, 'my-task');
+    expect(spec!.acceptanceCriteria).toEqual(['Item one', 'Item two', 'Item three']);
+  });
+
   it('generates default phases with auto agent', () => {
     const spec = parseSpec('desc', 'task-1');
     expect(spec!.phases).toEqual([

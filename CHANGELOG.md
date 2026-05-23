@@ -4,6 +4,9 @@ All notable changes to Toryo are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- **`parseSpec` no-frontmatter path now parses acceptance criteria from the markdown body.** Previously, specs without a YAML frontmatter block always returned `acceptanceCriteria: []`, silently ignoring any `## Acceptance Criteria` / `## Criteria` / `### Done When` section in the body. The fix calls `parseAcceptanceCriteria(content)` in the no-frontmatter branch, matching the behaviour of the frontmatter path. A regression test covering all three bullet styles and checkbox stripping is added.
+
 ### Added
 - **Cursor CLI adapter (`cursor`)** — wraps the `agent -p --force` non-interactive mode for the Cursor coding CLI. Requires `CURSOR_API_KEY`. Closes #31.
 - **Cline CLI adapter (`cline`)** — wraps `cline --yolo` for non-interactive orchestrator usage. Authenticates via `cline auth`. Closes #32.
