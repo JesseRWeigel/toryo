@@ -1,0 +1,6 @@
+{
+  "packages/core": "0.3.0",
+  "packages/adapters": "0.2.0",
+  "packages/cli": "0.2.0",
+  "packages/dashboard": "0.2.0"
+}

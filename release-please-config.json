@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "include-v-in-tag": true,
+  "include-component-in-tag": false,
+  "separate-pull-requests": false,
+  "group-pull-request-title-pattern": "chore: release ${version}",
+  "packages": {
+    "packages/core": {
+      "package-name": "toryo-core",
+      "changelog-path": "CHANGELOG.md"
+    },
+    "packages/adapters": {
+      "package-name": "toryo-adapters"
+    },
+    "packages/cli": {
+      "package-name": "@jweigel/toryo"
+    },
+    "packages/dashboard": {
+      "package-name": "@toryo/dashboard"
+    }
+  },
+  "plugins": [
+    {
+      "type": "node-workspace",
+      "updatePeerDependencies": true
+    },
+    {
+      "type": "linked-versions",
+      "groupName": "toryo",
+      "components": ["toryo-core", "toryo-adapters", "@jweigel/toryo", "@toryo/dashboard"]
+    }
+  ]
+}
