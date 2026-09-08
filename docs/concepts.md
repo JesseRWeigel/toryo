@@ -63,7 +63,7 @@ This skips the research phase entirely. You can also define custom phase names b
 
 ## Quality Ratcheting
 
-Inspired by [Karpathy's autoresearch](https://github.com/karpathy/autoresearch) pattern: **only forward progress gets committed. Bad results are automatically reverted.**
+Inspired by [Karpathy's autoresearch](https://github.com/karpathy/autoresearch) pattern: **accepted work is retained; rejected checkpoints are undone without rewriting history.**
 
 ### The Flow
 
@@ -78,7 +78,7 @@ Execute phase complete
         |
         +---> Score >= threshold ---> KEEP (commit stays)
         |
-        +---> Score < threshold ---> git reset --hard HEAD~1
+        +---> Score < threshold ---> git revert <verified-checkpoint>
                                            |
                                            v
                                      Ralph Loop retry
@@ -93,15 +93,15 @@ Execute phase complete
 1. After the plan/research/execute phases complete, Toryo creates a git commit with the message `toryo cycle-N: task-id`.
 2. The review agent scores the output.
 3. If the score meets or exceeds the threshold (default 6.0), the commit is kept.
-4. If the score is below the threshold, Toryo runs `git reset HEAD~1 --hard` to revert the commit, then enters the Ralph Loop.
+4. If the score is below the threshold, Toryo runs `git revert --no-edit <verified-checkpoint>` to undo only that attempt while preserving history, then enters the Ralph Loop.
 5. After all retries are exhausted, the cycle is marked as `discard` if it never passed.
 
 ### Git Strategies
 
 | Strategy | On Keep | On Revert |
 |----------|---------|-----------|
-| `commit-revert` | Commit stays on current branch | `git reset HEAD~1 --hard` |
-| `branch-per-task` | Branch `toryo/<task-slug>` stays for manual merge | Branch is deleted with `git branch -D` |
+| `commit-revert` | Commit stays on current branch | Verified checkpoint is undone with a new revert commit |
+| `branch-per-task` | Task branch stays for manual merge | Only the verified checkpoint is undone; the branch and earlier accepted work remain |
 | `none` | No git operations | No git operations |
 
 ### Infrastructure Failures

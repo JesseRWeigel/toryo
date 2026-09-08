@@ -97,8 +97,8 @@ Controls the quality gate that decides whether to keep or revert each cycle's ou
 
 | Strategy | Behavior |
 |----------|----------|
-| `commit-revert` | Commits before QA review. If QA fails, runs `git reset HEAD~1 --hard` to revert. If QA passes, the commit stays. |
-| `branch-per-task` | Creates a branch named `toryo/<task-slug>` for each task. If QA passes, you can merge manually. If QA fails, the branch is deleted (`git branch -D`). |
+| `commit-revert` | Checkpoints source before QA. A rejected verified checkpoint is undone with `git revert --no-edit <SHA>`, preserving history. Accepted checkpoints stay. |
+| `branch-per-task` | Creates a task branch when needed for manual merge. Rejection undoes only the verified checkpoint; the branch and earlier accepted commits remain. |
 | `none` | No git operations. Output is still saved to `outputDir` but nothing is committed or reverted. |
 
 ## Delegation Configuration
@@ -332,3 +332,53 @@ Use cloud models for tasks needing broad knowledge, local models for code genera
   }
 }
 ```
+
+
+### Git ratchet safety and recovery
+
+For Git-enabled strategies, run from a clean repository root: no staged,
+unstaged or untracked user changes. Commit/save your work or prepare a separate
+Git worktree before starting. Toryo refuses a dirty checkout before invoking
+agents; it does not stash or discard your changes automatically.
+
+Keep `outputDir` ignored by Git (for example `.toryo/` in `.gitignore`) or outside
+the repository. It must not contain tracked files or equal the repository root.
+Runtime metrics, knowledge and review extractions change after QA and are not
+source checkpoints. This rule also applies to custom output directory names.
+
+Every attempt records its starting commit and branch. The checkpoint includes
+the actual source diff, including additions and deletions, while respecting Git
+ignore rules. Let Toryo create checkpoints: if an agent commits or switches
+branches directly, the attempt stops for inspection. Configure agents accordingly.
+
+A failed checkpoint stops before QA. Rejection can only undo that exact verified
+checkpoint on the same branch with a clean index and worktree. A no-change
+attempt never rolls back the previous commit. Rejection preserves commit history,
+including on task branches; failed task branches are no longer deleted.
+
+If a review edits source, an unrelated commit appears, a Git hook fails, or a
+rollback conflicts, Toryo stops and preserves the current files/index/history.
+Inspect `git status`, `git diff`, `git diff --cached` and `git log`; resolve or
+save that work deliberately before starting a new run. There is no automatic
+hard reset or automatic conflict cleanup. Interrupted work likewise requires
+inspection; this is conservative recovery, not a promise of automatic resume.
+
+Git safety checks are not a sandbox for arbitrary agent code. Use a separate
+worktree/container and appropriate filesystem permissions when isolation from
+the rest of the host is required. `gitStrategy: "none"` disables these Git guards.
+
+
+Toryo acquires an exclusive `toryo-ratchet.lock` in the Git common directory
+before the preflight check and holds it until acceptance or successful rollback.
+This coordinates cooperating Toryo runs, including linked worktrees sharing that
+Git directory. Failed/interrupted attempts retain the lock with the owner PID,
+checkout path and recorded commit boundary for inspection. Toryo never steals a
+stale lock automatically. After confirming the owner process has stopped and
+saving/resolving the recorded work, remove that specific lock file manually to
+start a new run. Do not remove a live run's lock.
+
+The checkout must remain single-writer throughout an attempt: the lock does not
+stop an editor, other Git commands or arbitrary agent code. Use a dedicated
+worktree when doing other work concurrently. Low-level API callers must call
+`beginAttempt()` before making source edits, `commit()` to checkpoint them, then
+`accept()` or `revert()`; `commit()` no longer takes ownership implicitly.

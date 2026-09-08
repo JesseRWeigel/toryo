@@ -197,7 +197,25 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     return result;
   }
 
+  let cycleRunning = false;
   async function runCycle(cycleNum: number, task: TaskSpec): Promise<CycleResult> {
+    if (cycleRunning) throw new Error('A cycle is already running in this orchestrator');
+    cycleRunning = true;
+    try {
+      return await runCycleInternal(cycleNum, task);
+    } finally {
+      cycleRunning = false;
+    }
+  }
+
+  async function runCycleInternal(cycleNum: number, task: TaskSpec): Promise<CycleResult> {
+    const usesGit = config.ratchet.gitStrategy !== 'none' && await ratchet.isGitRepo();
+    if (usesGit) await ratchet.beginAttempt(config.outputDir);
+    async function rejectCheckpoint() {
+      if (usesGit && !await ratchet.revert()) {
+        throw new Error('Checkpoint rollback refused or failed; work is preserved. Inspect it before retrying');
+      }
+    }
     emit({ type: 'cycle:start', cycle: cycleNum, task: task.id });
     const cycleStart = Date.now();
 
@@ -289,8 +307,8 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     }
 
     // --- Commit before QA ---
-    if (await ratchet.isGitRepo()) {
-      await ratchet.commit(`toryo cycle-${cycleNum}: ${task.id}`, [config.outputDir]);
+    if (usesGit) {
+      await ratchet.commit(`toryo cycle-${cycleNum}: ${task.id}`);
     }
 
     // --- QA Review Phase (last phase in the phases array) ---
@@ -328,13 +346,12 @@ export async function createOrchestrator(options: OrchestratorOptions) {
     let retryCount = 0;
 
     if (ratchet.shouldKeep(review)) {
+      if (usesGit) await ratchet.accept();
       emit({ type: 'ratchet:keep', cycle: cycleNum, score: finalScore });
     } else {
       emit({ type: 'ratchet:revert', cycle: cycleNum, score: finalScore });
 
-      if (await ratchet.isGitRepo()) {
-        await ratchet.revert();
-      }
+      await rejectCheckpoint();
 
       // --- Ralph Loop ---
       while (ratchet.canRetry(retryCount)) {
@@ -346,13 +363,13 @@ export async function createOrchestrator(options: OrchestratorOptions) {
         const executeAgent = phaseResults.find((p) => p.phase === lastWorkPhase)?.agentId ??
           Object.keys(config.agents)[0];
         const retryPrompt = ratchet.buildRetryPrompt(task.description, review.feedback, retryCount);
+        if (usesGit) await ratchet.beginAttempt(config.outputDir);
         const retryResult = await runPhase(lastWorkPhase, executeAgent, retryPrompt, cycleNum, task.reasoningEffort);
 
         // Commit retry
-        if (await ratchet.isGitRepo()) {
+        if (usesGit) {
           await ratchet.commit(
             `toryo cycle-${cycleNum}: ${task.id} (retry ${retryCount})`,
-            [config.outputDir],
           );
         }
 
@@ -368,13 +385,12 @@ export async function createOrchestrator(options: OrchestratorOptions) {
         finalScore = retryReview.score;
 
         if (ratchet.shouldKeep(retryReview)) {
+          if (usesGit) await ratchet.accept();
           verdict = 'keep';
           emit({ type: 'ratchet:keep', cycle: cycleNum, score: finalScore });
           break;
         } else {
-          if (await ratchet.isGitRepo()) {
-            await ratchet.revert();
-          }
+          await rejectCheckpoint();
           verdict = 'discard';
         }
       }

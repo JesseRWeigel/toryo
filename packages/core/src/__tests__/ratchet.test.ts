@@ -213,6 +213,7 @@ describe('createRatchet', () => {
       const r = createRatchet({ gitStrategy: 'branch-per-task' }, repoDir);
       await r.createBranch('toryo/merge-test');
 
+      await r.beginAttempt();
       // Make a commit on the task branch
       await writeFile(join(repoDir, 'feature.txt'), 'new feature');
       await r.commit('add feature', ['feature.txt']);
@@ -230,30 +231,24 @@ describe('createRatchet', () => {
       expect(stdout).not.toContain('toryo/merge-test');
     });
 
-    it('deleteBranch checks out original and force-deletes the branch', async () => {
+    it('deleteBranch refuses to delete unmerged task work', async () => {
       const r = createRatchet({ gitStrategy: 'branch-per-task' }, repoDir);
       await r.createBranch('toryo/delete-test');
-
-      // Make a commit so the branch diverges
+      await r.beginAttempt();
       await writeFile(join(repoDir, 'tmp.txt'), 'temp');
       await r.commit('temp commit', ['tmp.txt']);
-
-      const result = await r.deleteBranch('toryo/delete-test');
-      expect(result).toBe(true);
-
-      const branch = await r.getCurrentBranch();
-      expect(branch).toBe('master');
-      expect(r.currentTaskBranch).toBeNull();
-
-      // Branch should be gone
-      const { stdout } = await execFileAsync('git', ['branch'], { cwd: repoDir });
-      expect(stdout).not.toContain('toryo/delete-test');
+      await r.accept();
+      expect(await r.deleteBranch('toryo/delete-test')).toBe(false);
+      expect(await r.getCurrentBranch()).toBe('toryo/delete-test');
+      const { stdout } = await execFileAsync('git', ['show', 'HEAD:tmp.txt'], { cwd: repoDir });
+      expect(stdout).toBe('temp');
     });
 
     it('commit auto-creates a branch in branch-per-task mode', async () => {
       const r = createRatchet({ gitStrategy: 'branch-per-task' }, repoDir);
       expect(r.currentTaskBranch).toBeNull();
 
+      await r.beginAttempt();
       await writeFile(join(repoDir, 'auto.txt'), 'auto-branched');
       const hash = await r.commit('Auto Branch Task', ['auto.txt']);
 
@@ -268,10 +263,13 @@ describe('createRatchet', () => {
     it('commit reuses existing task branch on subsequent calls', async () => {
       const r = createRatchet({ gitStrategy: 'branch-per-task' }, repoDir);
 
+      await r.beginAttempt();
       await writeFile(join(repoDir, 'first.txt'), 'first');
       await r.commit('My Task', ['first.txt']);
       const branchAfterFirst = r.currentTaskBranch;
 
+      await r.accept();
+      await r.beginAttempt();
       await writeFile(join(repoDir, 'second.txt'), 'second');
       await r.commit('My Task again', ['second.txt']);
       const branchAfterSecond = r.currentTaskBranch;
@@ -279,9 +277,10 @@ describe('createRatchet', () => {
       expect(branchAfterFirst).toBe(branchAfterSecond);
     });
 
-    it('revert in branch-per-task deletes the task branch', async () => {
+    it('revert in branch-per-task preserves branch history and undoes only the checkpoint', async () => {
       const r = createRatchet({ gitStrategy: 'branch-per-task' }, repoDir);
 
+      await r.beginAttempt();
       await writeFile(join(repoDir, 'revert.txt'), 'will be reverted');
       await r.commit('Revert Task', ['revert.txt']);
 
@@ -291,13 +290,17 @@ describe('createRatchet', () => {
       expect(result).toBe(true);
 
       const branch = await r.getCurrentBranch();
-      expect(branch).toBe('master');
-      expect(r.currentTaskBranch).toBeNull();
+      expect(branch).toBe('toryo/revert-task');
+      expect(r.currentTaskBranch).toBe('toryo/revert-task');
+      const { stdout } = await execFileAsync('git', ['log', '--oneline'], { cwd: repoDir });
+      expect(stdout).toContain('Revert Task');
+      expect(stdout).toContain('Revert');
     });
 
-    it('revert in commit-revert mode still does git reset', async () => {
+    it('revert in commit-revert mode preserves history', async () => {
       const r = createRatchet({ gitStrategy: 'commit-revert' }, repoDir);
 
+      await r.beginAttempt();
       await writeFile(join(repoDir, 'file.txt'), 'content');
       const hash = await r.commit('commit to revert', ['file.txt']);
       expect(hash).toBeTruthy();

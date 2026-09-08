@@ -315,3 +315,15 @@ Built on patterns from:
 - [Karpathy's autoresearch](https://github.com/karpathy/autoresearch) — ratcheting, results.tsv, NEVER STOP
 - [Ralph Loop](https://github.com/vercel-labs/ralph-loop-agent) — verify-then-retry pattern
 - [Intelligent AI Delegation](https://arxiv.org/abs/2602.11865) — trust scoring, capability matching
+
+
+### Safe Git checkpoints
+
+Git-enabled runs require a clean repository root and an ignored runtime
+`outputDir` (default `.toryo/`) or an output directory outside the repository.
+Source changes are checkpointed before QA. Rejected attempts undo only their
+verified checkpoint with a new revert commit; they do not hard-reset history or
+delete a task branch containing earlier accepted work. Checkpoint failures and
+unexpected changes stop the run for inspection. See
+[Git ratchet safety and recovery](docs/configuration.md#git-ratchet-safety-and-recovery)
+before running coding agents on a valuable checkout.
