@@ -86,7 +86,7 @@ describe('taskGroup', () => {
     // Drain the iterator so the child pumps advance.
     const drain = (async () => {
       for await (const _ev of group) {
-        // no-op
+        void _ev;
       }
     })();
 

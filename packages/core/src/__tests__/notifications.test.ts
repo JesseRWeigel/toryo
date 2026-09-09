@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createNotifier, shouldNotify, formatNotification } from '../notifications.js';
-import type { ToryoEvent, NotificationEvent, GlobalMetrics, CycleResult, ReviewResult } from '../types.js';
+import type { ToryoEvent, GlobalMetrics, CycleResult, ReviewResult } from '../types.js';
 
 // --- Helpers to build typed events ---
 

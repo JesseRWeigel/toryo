@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20, 22]
+        node-version: ['20.19', '22.13']
 
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +25,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Lint all packages
+        run: npm run lint
+
+      - name: Verify lint gate rejects violations
+        run: npm run test:lint-gate
 
       - name: Build all packages
         run: npm run build

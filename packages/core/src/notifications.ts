@@ -117,7 +117,7 @@ export function formatNotification(
         body: `Cycle ${event.cycle} scored below threshold.`,
         priority: 'default',
       };
-    case 'cycle:complete':
+    case 'cycle:complete': {
       if (event.result.verdict === 'crash') {
         return {
           title: 'Infrastructure failure',
@@ -133,6 +133,7 @@ export function formatNotification(
         body: `${event.result.task} — ${event.result.finalScore}/10${stats}`,
         priority: 'low',
       };
+    }
     default:
       return {
         title: 'Toryo event',

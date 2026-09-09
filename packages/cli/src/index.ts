@@ -81,16 +81,20 @@ async function loadConfig(args: string[]): Promise<ToryoConfig> {
     raw = await readFile(configPath, 'utf-8');
   } catch (err: unknown) {
     if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
-      throw new Error(`Config file not found: ${configPath}. Run 'toryo init' to create one.`);
+      throw new Error(`Config file not found: ${configPath}. Run 'toryo init' to create one.`, {
+        cause: err,
+      });
     }
-    throw new Error(`Error reading config: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(`Error reading config: ${err instanceof Error ? err.message : String(err)}`, {
+      cause: err,
+    });
   }
 
   try {
     return JSON.parse(raw);
   } catch (err: unknown) {
     if (err instanceof SyntaxError) {
-      throw new Error(`Invalid JSON in config file: ${err.message}`);
+      throw new Error(`Invalid JSON in config file: ${err.message}`, { cause: err });
     }
     throw err;
   }

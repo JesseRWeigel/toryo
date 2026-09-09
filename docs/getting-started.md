@@ -4,7 +4,7 @@ This guide walks you through installing Toryo, configuring your first agents, wr
 
 ## Prerequisites
 
-- **Node.js 20+** (Toryo uses modern JS features like `fetch` and top-level `await`)
+- **Node.js 20.x >= 20.19, 22.x >= 22.13, or 24+** (the supported development runtimes)
 - **At least one AI coding tool installed:**
   - [Claude Code](https://claude.ai/code) (`claude` CLI)
   - [Aider](https://aider.chat) (`aider` CLI)

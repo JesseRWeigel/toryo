@@ -17,7 +17,6 @@ import type {
   ReviewEvidence,
   ToryoEvent,
   ResultRow,
-  GlobalMetrics,
 } from './types.js';
 import { createDelegation } from './delegation.js';
 import { createRatchet } from './ratchet.js';

@@ -4,7 +4,7 @@ Thanks for your interest in contributing to Toryo! This guide covers everything 
 
 ## Development Setup
 
-1. **Prerequisites**: Node.js >= 20, npm >= 10
+1. **Prerequisites**: Node.js 20.x >= 20.19, 22.x >= 22.13, or 24+; npm >= 10
 
 2. **Clone and install**:
 

@@ -21,7 +21,7 @@ export async function captureReviewEvidence(cwd: string, base: string | null, ou
   const results: ReviewEvidence['checks'] = [];
   for (const check of checks) {
     const args = [...(check.args ?? [])];
-    let exitCode: number | null = null, stdout = '', stderr = '', error: string | undefined;
+    let exitCode: number | null, stdout: string, stderr: string, error: string | undefined;
     try {
       const result = await exec(check.command, args,
         {cwd, timeout: check.timeoutMs ?? 60000, maxBuffer: 256 * 1024, killSignal: 'SIGKILL'});

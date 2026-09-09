@@ -13,7 +13,7 @@ function createMockAdapter(responses: Record<string, string> = {}): AgentAdapter
   let callCount = 0;
   return {
     name: 'mock',
-    async send(options: AdapterSendOptions): Promise<AdapterResponse> {
+    async send(): Promise<AdapterResponse> {
       callCount++;
       const key = `call-${callCount}`;
       const output = responses[key] ?? responses['default'] ?? 'Mock output';
@@ -166,7 +166,7 @@ describe('createOrchestrator', () => {
   it('handles infrastructure failure gracefully', async () => {
     const failAdapter: AgentAdapter = {
       name: 'fail',
-      async send(options: AdapterSendOptions): Promise<AdapterResponse> {
+      async send(): Promise<AdapterResponse> {
         return { output: '', durationMs: 0, infraFailure: true, error: 'ECONNREFUSED' };
       },
       async isAvailable() { return true; },
@@ -352,7 +352,7 @@ describe('createOrchestrator', () => {
       return async () => {
         const scorer: AgentAdapter = {
           name: 'format-scorer',
-          async send(options: AdapterSendOptions): Promise<AdapterResponse> {
+          async send(): Promise<AdapterResponse> {
             return { output: reviewOutput, durationMs: 10, infraFailure: false };
           },
           async isAvailable() { return true; },

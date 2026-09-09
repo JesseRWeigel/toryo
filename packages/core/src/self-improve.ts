@@ -1,10 +1,5 @@
 import type {
-  AgentAdapter,
-  AgentState,
-  AgentProfile,
-  ToryoConfig,
   ResultRow,
-  ToryoEvent,
 } from './types.js';
 
 interface SelfImproveOptions {

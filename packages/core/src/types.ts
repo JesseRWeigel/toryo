@@ -1,5 +1,3 @@
-import { z } from 'zod';
-
 // --- Agent Types ---
 
 export type AutonomyLevel = 'supervised' | 'guided' | 'autonomous';

@@ -208,14 +208,17 @@ export function parseReview(
     new JsonWalker(json).assertUniqueObjectKeys();
   } catch (error) {
     if (error instanceof Error && /^Review /.test(error.message)) throw error;
-    throw new Error(`Review JSON validation failed: ${String(error)}`);
+    throw new Error(`Review JSON validation failed: ${String(error)}`, { cause: error });
   }
 
   let unknown: unknown;
   try {
     unknown = JSON.parse(json);
   } catch (error) {
-    throw new Error(`Review output is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Review output is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
   }
 
   const parsed = reviewSchema.safeParse(unknown);

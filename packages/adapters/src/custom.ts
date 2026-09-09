@@ -24,6 +24,7 @@ export class CustomAdapter extends CliAdapter {
   }
 
   buildCommand(_options: AdapterSendOptions) {
+    void _options;
     return {
       command: this.command,
       args: [...this.argTemplate],
