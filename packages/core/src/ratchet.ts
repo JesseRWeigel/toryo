@@ -14,7 +14,7 @@ const DEFAULT_CONFIG: RatchetConfig = {
 };
 
 export function createRatchet(config: Partial<RatchetConfig> = {}, cwd: string) {
-  const cfg = { ...DEFAULT_CONFIG, ...config };
+  const cfg = { ...DEFAULT_CONFIG, ...structuredClone(config) };
 
   /** Tracks the branch we were on before creating a task branch */
   let originalBranch: string | null = null;
@@ -296,11 +296,29 @@ export function createRatchet(config: Partial<RatchetConfig> = {}, cwd: string) 
   }
 
   function shouldKeep(review: ReviewResult): boolean {
-    return review.score >= cfg.threshold;
+    const required = cfg.requiredChecks ?? [];
+    if (required.length > 0) {
+      const evidence = review.evidence;
+      const refs = review.evidenceRefs;
+      if (!evidence || !refs || review.checksPassed !== true || evidence.checks.length !== required.length)
+        return false;
+      const ids = [evidence.patch.id, ...evidence.checks.map((check) => check.id)];
+      if (new Set(ids).size !== ids.length || refs.length !== ids.length ||
+        new Set(refs).size !== refs.length || ids.some((id) => !refs.includes(id))) return false;
+      for (const check of required) {
+        const captured = evidence.checks.find((entry) => entry.id.startsWith(`check:${check.id}:`));
+        if (!captured || captured.command !== check.command ||
+          JSON.stringify(captured.args) !== JSON.stringify(check.args ?? [])) return false;
+      }
+    }
+    return Number.isFinite(review.score) && review.score >= 0 && review.score <= 10 &&
+      review.score >= cfg.threshold && review.verdict === 'pass' &&
+      !review.validationError && review.checksPassed !== false &&
+      (review.evidence?.checks.every((check) => check.exitCode === 0 && !check.error) ?? true);
   }
 
   function getVerdict(review: ReviewResult, retryCount: number): CycleVerdict {
-    if (review.score >= cfg.threshold) return 'keep';
+    if (shouldKeep(review)) return 'keep';
     if (retryCount >= cfg.maxRetries) return 'discard';
     return 'discard';
   }
@@ -345,7 +363,7 @@ export function createRatchet(config: Partial<RatchetConfig> = {}, cwd: string) 
     getVerdict,
     canRetry,
     buildRetryPrompt,
-    config: cfg,
+    config: structuredClone(cfg),
     /** The branch we were on before creating a task branch */
     get originalBranch() {
       return originalBranch;

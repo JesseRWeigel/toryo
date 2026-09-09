@@ -105,9 +105,9 @@ export abstract class CliAdapter implements AgentAdapter {
             infraFailure: true,
             error: 'Timeout exceeded',
           });
-        } else if (code !== 0 && !stdout) {
+        } else if (code !== 0) {
           resolve({
-            output: '',
+            output: stdout,
             durationMs: Date.now() - start,
             infraFailure: true,
             error: stderr || `Process exited with code ${code}`,

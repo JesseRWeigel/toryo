@@ -16,7 +16,18 @@ const AgentProfileSchema = z.object({
   tools: z.array(z.string()).optional(),
 });
 
+const RequiredCheckSchema = z.object({
+  id: z.string().regex(/^[a-zA-Z0-9_-]+$/),
+  command: z.string().min(1),
+  args: z.array(z.string()).default([]),
+  timeoutMs: z.number().int().positive().max(600000).default(60000),
+}).strict();
+
 const RatchetSchema = z.object({
+  requiredChecks: z.array(RequiredCheckSchema).refine(
+    (checks) => new Set(checks.map((check) => check.id)).size === checks.length,
+    'Required check IDs must be unique',
+  ).optional(),
   threshold: z.number().min(0).max(10).default(6.0),
   maxRetries: z.number().int().min(0).default(1),
   gitStrategy: z.enum(['commit-revert', 'branch-per-task', 'none']).default('commit-revert'),

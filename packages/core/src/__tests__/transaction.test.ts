@@ -1,3 +1,4 @@
+import { structuredReview } from './review-fixture.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, writeFile, readFile, rm, chmod } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -41,6 +42,7 @@ async function setup(
   edit: (call: number) => Promise<void>,
   strategy: 'commit-revert' | 'branch-per-task' = 'commit-revert',
   retries = 0,
+  requiredChecks: NonNullable<ToryoConfig['ratchet']['requiredChecks']> = [],
 ) {
   let workCalls = 0,
     reviewCalls = 0;
@@ -55,8 +57,8 @@ async function setup(
   const reviewer: AgentAdapter = {
     name: 'reviewer',
     isAvailable: async () => true,
-    send: async () => ({
-      output: `Score: ${scores[reviewCalls++] ?? 2}/10`,
+    send: async (options) => ({
+      output: structuredReview(options.prompt, scores[reviewCalls++] ?? 2),
       durationMs: 1,
       infraFailure: false,
     }),
@@ -69,7 +71,7 @@ async function setup(
     tasks: [],
     phases: ['execute', 'review'],
     outputDir: join(dir, '.custom-output'),
-    ratchet: { threshold: 6, maxRetries: retries, gitStrategy: strategy },
+    ratchet: { threshold: 6, maxRetries: retries, gitStrategy: strategy, requiredChecks },
     delegation: {
       initialTrust: 0.5,
       scoreWindow: 50,
@@ -96,7 +98,9 @@ describe('real source checkpoint boundaries', () => {
         async (n) => writeFile(join(dir, 'source.txt'), n === 1 ? 'accepted' : 'rejected'),
         strategy,
       );
-      await orchestrator.runCycle(1, task);
+      const result = await orchestrator.runCycle(1, task);
+      expect(result.reviews?.[0].evidence?.patch.base).toBe(initial);
+      expect(result.reviews?.[0].evidence?.patch.diff).toContain('+accepted');
       const accepted = await git('rev-parse', 'HEAD');
       expect(await git('show', 'HEAD:source.txt')).toBe('accepted');
       await orchestrator.runCycle(2, task);
@@ -290,4 +294,21 @@ describe('real source checkpoint boundaries', () => {
       JSON.parse(await readFile(join(dir, '.git/toryo-ratchet.lock'), 'utf8')).checkpoint,
     ).toBeTruthy();
   });
+  it('rechecks the new Git checkpoint after a required check rejects a passing review', async () => {
+    const script = `const fs=require('node:fs');fs.mkdirSync('.custom-output',{recursive:true});
+      const path='.custom-output/check-count.txt';const n=fs.existsSync(path)?Number(fs.readFileSync(path)):0;
+      fs.writeFileSync(path,String(n+1));console.log('check attempt '+(n+1));process.exit(n===0?1:0)`;
+    const {orchestrator} = await setup([9,9],
+      async (n) => writeFile(join(dir,'source.txt'),`candidate ${n}`), 'commit-revert', 1,
+      [{id:'test',command:process.execPath,args:['-e',script]}]);
+    const result = await orchestrator.runCycle(1,task);
+    expect(result.verdict).toBe('keep');
+    expect(result.reviews).toHaveLength(2);
+    expect(result.reviews![0].validationError).toBeTruthy();
+    expect(result.reviews![0].evidence!.checks[0].exitCode).toBe(1);
+    expect(result.reviews![1].evidence!.checks[0].exitCode).toBe(0);
+    expect(result.reviews![0].evidence!.patch.head).not.toBe(result.reviews![1].evidence!.patch.head);
+    expect(await readFile(join(dir,'source.txt'),'utf8')).toBe('candidate 2');
+  });
+
 });

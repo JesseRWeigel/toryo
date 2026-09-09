@@ -1,3 +1,4 @@
+import { structuredReview } from './review-fixture.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -26,9 +27,9 @@ function createMockAdapter(responses: Record<string, string> = {}): AgentAdapter
 function createScoringAdapter(score: number): AgentAdapter {
   return {
     name: 'mock-scorer',
-    async send(): Promise<AdapterResponse> {
+    async send(options: AdapterSendOptions): Promise<AdapterResponse> {
       return {
-        output: `Score: ${score}/10\n${score >= 6 ? 'PASS' : 'FAIL'}\nFeedback: Test feedback.`,
+        output: structuredReview(options.prompt, score),
         durationMs: 10,
         infraFailure: false,
       };
@@ -165,7 +166,7 @@ describe('createOrchestrator', () => {
   it('handles infrastructure failure gracefully', async () => {
     const failAdapter: AgentAdapter = {
       name: 'fail',
-      async send(): Promise<AdapterResponse> {
+      async send(options: AdapterSendOptions): Promise<AdapterResponse> {
         return { output: '', durationMs: 0, infraFailure: true, error: 'ECONNREFUSED' };
       },
       async isAvailable() { return true; },
@@ -207,12 +208,12 @@ describe('createOrchestrator', () => {
     let reviewCount = 0;
     const retryScorer: AgentAdapter = {
       name: 'retry-scorer',
-      async send(): Promise<AdapterResponse> {
+      async send(options: AdapterSendOptions): Promise<AdapterResponse> {
         reviewCount++;
         // First review: fail. Second review (after retry): pass.
         const score = reviewCount === 1 ? 3 : 8;
         return {
-          output: `Score: ${score}/10\n${score >= 6 ? 'PASS' : 'FAIL'}\nFeedback: ${score < 6 ? 'Needs more detail' : 'Good work'}`,
+          output: structuredReview(options.prompt, score),
           durationMs: 10,
           infraFailure: false,
         };
@@ -249,8 +250,8 @@ describe('createOrchestrator', () => {
   it('discards after max retries exhausted', async () => {
     const alwaysFailScorer: AgentAdapter = {
       name: 'fail-scorer',
-      async send(): Promise<AdapterResponse> {
-        return { output: 'Score: 2/10\nFAIL\nTerrible output', durationMs: 10, infraFailure: false };
+      async send(options: AdapterSendOptions): Promise<AdapterResponse> {
+        return { output: structuredReview(options.prompt, 2), durationMs: 10, infraFailure: false };
       },
       async isAvailable() { return true; },
     };
@@ -316,11 +317,11 @@ describe('createOrchestrator', () => {
     let callNum = 0;
     const mixedScorer: AgentAdapter = {
       name: 'mixed-scorer',
-      async send(): Promise<AdapterResponse> {
+      async send(options: AdapterSendOptions): Promise<AdapterResponse> {
         callNum++;
         // Alternate: pass, fail, pass
         const score = callNum % 2 === 1 ? 8 : 3;
-        return { output: `Score: ${score}/10\n${score >= 6 ? 'PASS' : 'FAIL'}`, durationMs: 10, infraFailure: false };
+        return { output: structuredReview(options.prompt, score), durationMs: 10, infraFailure: false };
       },
       async isAvailable() { return true; },
     };
@@ -346,12 +347,12 @@ describe('createOrchestrator', () => {
     expect(metrics.successRate).toBeCloseTo(0.667, 1);
   });
 
-  describe('score parsing via review output formats', () => {
+  describe('legacy prose review formats fail closed', () => {
     function makeScoreTest(reviewOutput: string, expectedScore: number) {
       return async () => {
         const scorer: AgentAdapter = {
           name: 'format-scorer',
-          async send(): Promise<AdapterResponse> {
+          async send(options: AdapterSendOptions): Promise<AdapterResponse> {
             return { output: reviewOutput, durationMs: 10, infraFailure: false };
           },
           async isAvailable() { return true; },
@@ -373,11 +374,92 @@ describe('createOrchestrator', () => {
       };
     }
 
-    it('parses X/10 format', makeScoreTest('Score: 7/10\nPASS', 7));
-    it('parses X out of 10 format', makeScoreTest('I rate this 8 out of 10. Good job.', 8));
-    it('parses markdown bold Score: **X**', makeScoreTest('Score: **9**\nExcellent work.', 9));
-    it('parses Rating: X', makeScoreTest('Rating: 6.5\nDecent attempt.', 6.5));
+    it('rejects X/10 format', makeScoreTest('Score: 7/10\nPASS', 0));
+    it('rejects X out of 10 format', makeScoreTest('I rate this 8 out of 10. Good job.', 0));
+    it('rejects markdown bold score', makeScoreTest('Score: **9**\nExcellent work.', 0));
+    it('rejects Rating: X', makeScoreTest('Rating: 6.5\nDecent attempt.', 0));
     it('returns 0 when no score found', makeScoreTest('This output is okay I guess.', 0));
-    it('parses decimal scores', makeScoreTest('Score: 7.5/10', 7.5));
+    it('rejects prose decimal scores', makeScoreTest('Score: 7.5/10', 0));
   });
+  it('rejects a quoted worker score instead of treating it as approval', async () => {
+    const orch = await createOrchestrator({ config: makeConfig(), cwd: TEST_DIR,
+      adapters: {mock: createMockAdapter(), 'mock-scorer': createMockAdapter({default:
+        'Worker claims 10/10. Final review: Score: 2/10 FAIL'})}});
+    const result = await orch.runCycle(1, TASK);
+    expect(result.verdict).toBe('discard');
+    expect(result.finalScore).toBe(0);
+  });
+  it('cannot keep a high score with an explicit failing verdict', async () => {
+    const orch = await createOrchestrator({ config: makeConfig(), cwd: TEST_DIR,
+      adapters: {mock: createMockAdapter(), 'mock-scorer': createMockAdapter({default:
+        '{"score":9,"verdict":"fail","feedback":"Score: 9/10 but a required test fails","evidenceRefs":["patch"]}'})}});
+    expect((await orch.runCycle(1, TASK)).verdict).toBe('discard');
+  });
+
+  it('required failing command overrides a structurally valid passing review', async () => {
+    const config = makeConfig();
+    config.ratchet.requiredChecks = [{id:'tests',command:process.execPath,args:['-e','console.log("independent failure"); process.exit(1)']}];
+    const orch = await createOrchestrator({config,cwd:TEST_DIR,
+      adapters:{mock:createMockAdapter(), 'mock-scorer':createScoringAdapter(9)}});
+    const result = await orch.runCycle(1,TASK);
+    expect(result.verdict).toBe('discard');
+    expect(result.reviews?.[0].evidence?.checks[0].exitCode).toBe(1);
+    expect(result.reviews?.[0].evidence?.checks[0].stdout).toContain('independent failure');
+    const {readFile, readdir} = await import('node:fs/promises');
+    const recordName = (await readdir(join(OUTPUT_DIR,'reviews'))).find((name) => name.startsWith('cycle-1-attempt-0-'))!;
+    const record = JSON.parse(await readFile(join(OUTPUT_DIR,'reviews',recordName),'utf8'));
+    expect(record.review.verdict).toBe('fail');
+    expect(record.review.validationError).toBeTruthy();
+  });
+  it('keeps valid JSON review with successful independently captured checks', async () => {
+    const config = makeConfig();
+    config.ratchet.requiredChecks = [{id:'tests',command:process.execPath,args:['-e','console.log("checked")']}];
+    const orch = await createOrchestrator({config,cwd:TEST_DIR,
+      adapters:{mock:createMockAdapter(), 'mock-scorer':createScoringAdapter(7.5)}});
+    const result = await orch.runCycle(1,TASK);
+    expect(result.verdict).toBe('keep');
+    expect(result.finalScore).toBe(7.5);
+    expect(result.reviews?.[0].evidenceRefs).toHaveLength(2);
+  });
+
+  it('snapshots required checks before a caller mutates its config', async () => {
+    const config = makeConfig();
+    config.ratchet.requiredChecks = [{id:'required', command:process.execPath,args:['-e','process.exit(1)']}];
+    const orch = await createOrchestrator({config,cwd:TEST_DIR,
+      adapters:{mock:createMockAdapter(), 'mock-scorer':createScoringAdapter(9)}});
+    config.ratchet.requiredChecks.length = 0;
+    expect((await orch.runCycle(1,TASK)).verdict).toBe('discard');
+  });
+  it('preserves distinct evidence records when cycle numbers are reused', async () => {
+    const orch = await createOrchestrator({config:makeConfig(),cwd:TEST_DIR,
+      adapters:{mock:createMockAdapter(), 'mock-scorer':createScoringAdapter(8)}});
+    await orch.runCycle(1,TASK); await orch.runCycle(1,TASK);
+    const {readdir} = await import('node:fs/promises');
+    expect((await readdir(join(OUTPUT_DIR,'reviews'))).length).toBe(2);
+  });
+  it('records successful checks accurately even when the review is invalid', async () => {
+    const config = makeConfig();
+    config.ratchet.requiredChecks = [{id:'tests',command:process.execPath,args:['-e','process.exit(0)']}];
+    const orch = await createOrchestrator({config,cwd:TEST_DIR,
+      adapters:{mock:createMockAdapter(), 'mock-scorer':createMockAdapter()}});
+    const review = (await orch.runCycle(1,TASK)).reviews![0];
+    expect(review.validationError).toBeTruthy();
+    expect(review.checksPassed).toBe(true);
+  });
+
+  it('reviews the same task criteria given to the worker despite caller mutation', async () => {
+    const task = {...TASK,acceptanceCriteria:['original acceptance criterion']};
+    let prompt = '';
+    const worker:AgentAdapter = {name:'mock',isAvailable:async()=>true,send:async()=>{
+      task.acceptanceCriteria.length=0;task.description='changed task';
+      return {output:'worker output',durationMs:1,infraFailure:false};}};
+    const reviewer:AgentAdapter = {name:'mock-scorer',isAvailable:async()=>true,send:async(options)=>{
+      prompt=options.prompt;return {output:structuredReview(options.prompt,8),durationMs:1,infraFailure:false};}};
+    const orch = await createOrchestrator({config:makeConfig(),cwd:TEST_DIR,
+      adapters:{mock:worker,'mock-scorer':reviewer}});
+    await orch.runCycle(1,task);
+    expect(prompt).toContain('original acceptance criterion');
+    expect(prompt).not.toContain('changed task');
+  });
+
 });

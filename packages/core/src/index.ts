@@ -49,6 +49,8 @@ export type {
   CycleVerdict,
   PhaseResult,
   ReviewResult,
+  ReviewEvidence,
+  RequiredCheck,
   Extraction,
   RatchetConfig,
   DelegationConfig,

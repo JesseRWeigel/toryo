@@ -327,3 +327,63 @@ delete a task branch containing earlier accepted work. Checkpoint failures and
 unexpected changes stop the run for inspection. See
 [Git ratchet safety and recovery](docs/configuration.md#git-ratchet-safety-and-recovery)
 before running coding agents on a valuable checkout.
+
+
+## Structured review gate
+
+The final phase must return exactly one JSON object (a single whole `json` code fence is also
+accepted). Legacy `Score: X/10` prose is rejected. Custom reviewer prompts must use this shape:
+
+```json
+{
+  "score": 8,
+  "verdict": "pass",
+  "feedback": "Explain the decision against the task criteria and captured evidence.",
+  "evidenceRefs": ["patch:<captured-sha256>", "check:tests:<captured-sha256>"]
+}
+```
+
+Use the exact evidence IDs supplied in the review prompt. Scores must be finite numbers from
+0 through 10. Verdicts are `pass`, `fail`, or `needs_revision`; the score must agree with the
+configured threshold. Missing, duplicate, extra, conflicting, or malformed fields fail closed.
+Every patch and required check must be referenced. A failed required check prevents acceptance
+even when a reviewer assigns a passing score. Invalid reviews receive score zero and enter the
+normal rejection/retry flow with an actionable validation error.
+
+Configure deterministic checks in trusted configuration:
+
+```yaml
+ratchet:
+  threshold: 6
+  maxRetries: 1
+  gitStrategy: commit-revert
+  requiredChecks:
+    - id: tests
+      command: npm
+      args: [test]
+      timeoutMs: 60000
+```
+
+Checks run after each source checkpoint and before review, including retries, using executable
+and argument arrays without a shell. Each check has a 60-second default timeout and a 256 KiB
+output limit; timeouts, missing executables, nonzero exits, and output overflow fail the gate.
+No checks are inferred: an omitted list provides model review only. Choose project-specific
+checks before relying on automated acceptance. Check commands and the programs they invoke
+are trusted local code and are not sandboxed. On Windows, use an executable entry point
+(for example `node` plus the path to npm's CLI) rather than relying on shell-only `.cmd` execution.
+
+Git review evidence contains the exact base/checkpoint commit IDs and diff, with a SHA-256
+evidence ID. Diffs larger than 1 MiB stop review instead of silently dropping evidence.
+Without a Git checkpoint (`gitStrategy: none` or a non-Git task), the captured artifact is the
+worker output and commit IDs are null; this mode does not verify source changes.
+Raw worker/file/command text is marked as untrusted context. A reviewer must not modify the
+checkout; the Git ratchet refuses to accept a changed checkpoint.
+
+Each attempt writes `reviews/cycle-<number>-attempt-<number>-<uuid>.json` under `outputDir`, including
+captured evidence, raw reviewer response, parsed result or validation error. Returned cycle
+results also retain all reviews. Exclusive creation and a unique suffix preserve records when cycle
+numbers repeat. Configuration is copied when the orchestrator is created; changes to the caller's
+configuration apply only to a new orchestrator. These local records can contain source and command output;
+keep the runtime directory ignored. Comparison references and structured output improve
+auditability, but do not prove a model inspected the evidence or provide prompt-injection
+containment. No provider calls are needed for the regression tests.

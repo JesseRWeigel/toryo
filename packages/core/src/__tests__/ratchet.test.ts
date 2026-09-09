@@ -73,6 +73,12 @@ describe('createRatchet', () => {
     });
   });
 
+
+  it('requires captured required-check evidence through the public acceptance API', () => {
+    const r=createRatchet({requiredChecks:[{id:'tests',command:'node',args:['test.js']}]},cwd);
+    expect(r.shouldKeep(makeReview({score:9}))).toBe(false);
+  });
+
   describe('canRetry', () => {
     it('returns true when retryCount is below maxRetries', () => {
       const r = createRatchet({ maxRetries: 2 }, cwd);

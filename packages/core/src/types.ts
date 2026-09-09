@@ -82,6 +82,8 @@ export interface CycleResult {
   finalScore: number;
   verdict: CycleVerdict;
   retryCount: number;
+  /** Every review, including retries, with captured patch and check evidence. */
+  reviews?: ReviewResult[];
 }
 
 export type CycleVerdict = 'keep' | 'discard' | 'crash' | 'skip';
@@ -108,13 +110,34 @@ export interface Extraction {
 export interface RatchetConfig {
   /** Minimum QA score to keep (default: 6.0) */
   threshold: number;
+  /** Trusted commands run independently before each review. All must succeed. */
+  requiredChecks?: RequiredCheck[];
   /** Max Ralph Loop retries (default: 1) */
   maxRetries: number;
   /** How to handle git on pass/fail */
   gitStrategy: 'commit-revert' | 'branch-per-task' | 'none';
 }
 
+export interface RequiredCheck {
+  id: string;
+  command: string;
+  args?: string[];
+  timeoutMs?: number;
+}
+
+export interface ReviewEvidence {
+  patch: { id: string; base: string | null; head: string | null; diff: string };
+  checks: Array<{
+    id: string; command: string; args: string[]; exitCode: number | null;
+    stdout: string; stderr: string; error?: string;
+  }>;
+}
+
 export interface ReviewResult {
+  evidence?: ReviewEvidence;
+  evidenceRefs?: string[];
+  validationError?: string;
+  checksPassed?: boolean;
   score: number;
   verdict: 'pass' | 'needs_revision' | 'fail';
   feedback: string;
